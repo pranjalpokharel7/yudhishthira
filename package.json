@@ -1,0 +1,22 @@
+{
+  "name": "pdb",
+  "version": "1.0.0",
+  "description": "Blockchain implementation",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pranjalpokharel7/pdb.git"
+  },
+  "keywords": [
+    "Blockchain"
+  ],
+  "author": "Pranjal Pokharel, Sanskar Amgain",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/pranjalpokharel7/pdb/issues"
+  },
+  "homepage": "https://github.com/pranjalpokharel7/pdb#readme"
+}
