@@ -1,13 +1,5 @@
 package blockchain
 
-type CHAIN_TYPE int
-
-// different chains for different purposes
-const (
-	MAIN_CHAIN CHAIN_TYPE = iota
-	TEST_CHAIN
-)
-
 // technically block chain is just a chain of blocks
 // a single int field to determine whether the chain is main chain or test chain
 type BlockChain struct {

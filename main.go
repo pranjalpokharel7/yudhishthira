@@ -2,15 +2,16 @@ package main
 
 import (
 	"fmt"
+	"time"
 
-	"github.com/pranjalpokharel7/pdb/transaction"
+	"github.com/pranjalpokharel7/pdb/blockchain"
 )
 
 func main() {
 	fmt.Println("This is where it begins...")
 
 	// example usage
-	var tr transaction.Tx
-	tr.InputCount = 3
-	fmt.Println(tr.InputCount)
+	var blk1 blockchain.Block
+	blk1.SetBlockValues(uint64(time.Now().Unix()), 4) // will include previous hash parameter in next commit
+	blk1.CalculateHash()
 }
