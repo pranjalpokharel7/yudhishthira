@@ -12,6 +12,9 @@ func main() {
 
 	// example usage
 	var blk1 blockchain.Block
-	blk1.SetBlockValues(uint64(time.Now().Unix()), 4) // will include previous hash parameter in next commit
-	blk1.CalculateHash()
+	blk1.InitBlock(uint64(time.Now().Unix()))
+
+	var chain blockchain.BlockChain
+	chain.Difficulty = 2 // might reduce to 1, takes too much time even now
+	chain.ProofOfWork(blk1)
 }
