@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"github.com/pranjalpokharel7/pdb/transaction"
+	"github.com/pranjalpokharel7/yudhishthira/transaction"
 )
 
 type BlockHeader struct {
