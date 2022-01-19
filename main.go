@@ -19,11 +19,13 @@ func main() {
 	}
 
 	var tree *merkel.MerkelTree
-	var err error
-	tree, err = merkel.CreateMerkelTree(transactions, tree)
-	if err != nil {
-		println("Error Occured")
-	} else {
-		tree.GetRoot().Print()
+	tree, _ = merkel.CreateMerkelTree(transactions, tree)
+
+	for i := 0; i < 15; i++ {
+		tx := transaction.Tx{
+			InputCount: i,
+		}
+
+		fmt.Println(tree.VerifyTransaction(tx))
 	}
 }

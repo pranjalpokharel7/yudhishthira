@@ -1,6 +1,7 @@
 package merkel
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -70,14 +71,15 @@ func CreateMerkelTree(transactions []transaction.Tx, tree *MerkelTree) (*MerkelT
 	return tree, err
 }
 
-func AddDataMerkelTree(tree *MerkelTree, tx transaction.Tx) (*MerkelTree, error) {
-	node := &Node{
-		tx:        tx,
-		parent:    nil,
-		HashValue: hashTransaction(tx),
+func AddDataMerkelTree(tree *MerkelTree, transactions ...transaction.Tx) (*MerkelTree, error) {
+	for _, tx := range transactions {
+		node := &Node{
+			tx:        tx,
+			parent:    nil,
+			HashValue: hashTransaction(tx),
+		}
+		tree.leafNodes = append(tree.leafNodes, node)
 	}
-
-	tree.leafNodes = append(tree.leafNodes, node)
 
 	var err error
 	tree.root, err = createMerkelTreeIntermediate(tree.leafNodes, tree)
@@ -138,4 +140,26 @@ func (tree *MerkelTree) GetRoot() *Node {
 
 func (tree *MerkelTree) GetLengthLeaves() int {
 	return len(tree.leafNodes)
+}
+
+func (tree *MerkelTree) VerifyTransaction(tx transaction.Tx) bool {
+	for _, node := range tree.leafNodes {
+		if bytes.Compare(hashTransaction(tx), node.HashValue) == 0 {
+			parentNode := node.parent
+			for parentNode != nil {
+				rightHash := parentNode.right.HashValue
+				leftHash := parentNode.left.HashValue
+
+				if bytes.Compare(parentNode.HashValue, []byte(tree.hashStrategy(append(leftHash, rightHash...)))) != 0 {
+					return false
+				}
+
+				parentNode = parentNode.parent
+			}
+
+			return true
+		}
+	}
+
+	return false
 }
