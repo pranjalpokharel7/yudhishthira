@@ -3,7 +3,7 @@ package blockchain
 import (
 	"crypto/sha256"
 
-	"github.com/pranjalpokharel7/pdb/transaction"
+	"github.com/pranjalpokharel7/yudhishthira/transaction"
 )
 
 type BlockHeader struct {

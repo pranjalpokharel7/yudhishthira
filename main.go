@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pranjalpokharel7/pdb/blockchain"
+	"github.com/pranjalpokharel7/yudhishthira/blockchain"
 )
 
 func main() {
