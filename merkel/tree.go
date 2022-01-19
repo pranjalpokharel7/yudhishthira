@@ -10,8 +10,9 @@ import (
 	"github.com/pranjalpokharel7/yudhishthira/transaction"
 )
 
+// node struct, to encompass data
 type Node struct {
-	hashValue    string // contains the hashed byte
+	HashValue    string // contains the hashed byte
 	parent       *Node  // parent node
 	right        *Node
 	left         *Node
@@ -20,16 +21,23 @@ type Node struct {
 	tree         *MerkelTree
 }
 
-func hashTransaction(tx transaction.Tx) []byte {
-	data := []byte(strconv.Itoa(tx.InputCount))
-	hash := sha1.Sum(data)
-	return hash[:]
+// Merkel tree to store all the info
+type MerkelTree struct {
+	root         *Node
+	leafNodes    []*Node
+	hashStrategy func([]byte) string
 }
 
-type MerkelTree struct {
-	root *Node
-	// this function is the hashing function so that we can test with multiple hashing functions, alsow not fixed how to hash a transaction, so a place holder
-	hashStrategy func([]byte) []byte
+// hash transaction struct
+func hashTransaction(tx transaction.Tx) string {
+	data := []byte(strconv.Itoa(tx.InputCount))
+	hash := sha1.Sum(data)
+	return string(hash[:])
+}
+
+func hashDataSha256(data []byte) string {
+	hash := sha1.Sum(data)
+	return string(hash[:])
 }
 
 func CreateMerkelTree(transactions []transaction.Tx, tree *MerkelTree) (*MerkelTree, error) {
@@ -38,26 +46,41 @@ func CreateMerkelTree(transactions []transaction.Tx, tree *MerkelTree) (*MerkelT
 	}
 
 	if tree == nil {
-		tree = &MerkelTree{}
+		tree = &MerkelTree{
+			hashStrategy: hashDataSha256,
+		}
 	}
-
-	var nodes []*Node
 
 	// add to the roots of the merkel tree
 	for _, tx := range transactions {
 		node := Node{
-			hashValue: string(hashTransaction(tx)),
+			HashValue: hashTransaction(tx),
 			parent:    nil,
 			right:     nil,
 			left:      nil,
 			tx:        tx,
 		}
 
-		nodes = append(nodes, &node)
+		tree.leafNodes = append(tree.leafNodes, &node)
 	}
 
 	var err error
-	tree.root, err = createMerkelTreeIntermediate(nodes, tree)
+	tree.root, err = createMerkelTreeIntermediate(tree.leafNodes, tree)
+
+	return tree, err
+}
+
+func AddDataMerkelTree(tree *MerkelTree, tx transaction.Tx) (*MerkelTree, error) {
+	node := &Node{
+		tx:        tx,
+		parent:    nil,
+		HashValue: hashTransaction(tx),
+	}
+
+	tree.leafNodes = append(tree.leafNodes, node)
+
+	var err error
+	tree.root, err = createMerkelTreeIntermediate(tree.leafNodes, tree)
 
 	return tree, err
 }
@@ -77,13 +100,13 @@ func createMerkelTreeIntermediate(nodes []*Node, tree *MerkelTree) (*Node, error
 			right = i
 		}
 
-		contentHash := []byte(nodes[left].hashValue + nodes[right].hashValue)
-		hash := sha1.Sum(contentHash)
+		contentHash := []byte(nodes[left].HashValue + nodes[right].HashValue)
+		hash := tree.hashStrategy(contentHash)
 
 		n := &Node{
 			left:      nodes[left],
 			right:     nodes[right],
-			hashValue: string(hash[:]),
+			HashValue: string(hash[:]),
 			tree:      tree,
 		}
 
@@ -103,7 +126,7 @@ func (node *Node) Print() {
 	if node == nil {
 		return
 	}
-	fmt.Printf("%x ", node.hashValue)
+	fmt.Printf("%x\n", node.HashValue)
 	node.left.Print()
 	node.right.Print()
 
@@ -111,4 +134,8 @@ func (node *Node) Print() {
 
 func (tree *MerkelTree) GetRoot() *Node {
 	return tree.root
+}
+
+func (tree *MerkelTree) GetLengthLeaves() int {
+	return len(tree.leafNodes)
 }
