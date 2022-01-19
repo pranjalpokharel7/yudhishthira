@@ -1,7 +1,7 @@
 package merkel
 
 import (
-	"crypto/sha1"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"hash"
@@ -12,7 +12,7 @@ import (
 
 // node struct, to encompass data
 type Node struct {
-	HashValue    string // contains the hashed byte
+	HashValue    []byte // contains the hashed byte
 	parent       *Node  // parent node
 	right        *Node
 	left         *Node
@@ -29,14 +29,14 @@ type MerkelTree struct {
 }
 
 // hash transaction struct
-func hashTransaction(tx transaction.Tx) string {
+func hashTransaction(tx transaction.Tx) []byte {
 	data := []byte(strconv.Itoa(tx.InputCount))
-	hash := sha1.Sum(data)
-	return string(hash[:])
+	hash := sha256.Sum256(data)
+	return hash[:]
 }
 
 func hashDataSha256(data []byte) string {
-	hash := sha1.Sum(data)
+	hash := sha256.Sum256(data)
 	return string(hash[:])
 }
 
@@ -100,13 +100,13 @@ func createMerkelTreeIntermediate(nodes []*Node, tree *MerkelTree) (*Node, error
 			right = i
 		}
 
-		contentHash := []byte(nodes[left].HashValue + nodes[right].HashValue)
+		contentHash := append(nodes[left].HashValue, nodes[right].HashValue...)
 		hash := tree.hashStrategy(contentHash)
 
 		n := &Node{
 			left:      nodes[left],
 			right:     nodes[right],
-			HashValue: string(hash[:]),
+			HashValue: []byte(hash),
 			tree:      tree,
 		}
 

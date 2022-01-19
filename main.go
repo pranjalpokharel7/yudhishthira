@@ -10,7 +10,7 @@ import (
 func main() {
 	fmt.Println("This is where it begins...")
 
-	transactions := make([]transaction.Tx, 5)
+	transactions := make([]transaction.Tx, 8)
 
 	for i := range transactions {
 		transactions[i] = transaction.Tx{
