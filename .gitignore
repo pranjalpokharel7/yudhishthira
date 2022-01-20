@@ -17,3 +17,7 @@ vscode/*
 
 # Go workspace file
 go.work
+
+
+# notes foler
+notes/
