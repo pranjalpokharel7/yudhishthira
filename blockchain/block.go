@@ -1,7 +1,9 @@
 package blockchain
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -9,7 +11,6 @@ import (
 )
 
 type BlockHeader struct {
-	version      uint32          // which version of the coin the block is a part of, might be removed
 	nonce        uint64          // unsigned representation for now, might allocate 64 bits later, upgrade to 64 bits if version field is removed
 	timestamp    uint64          // unix date time, string representation now, might convert to uint64 if time zones are not taken into consideration
 	previousHash [HASH_SIZE]byte // hash of previous block
@@ -37,13 +38,13 @@ func (blk Block) String() string {
 	return "This is a block!"
 }
 
-// function to calculate the hash of a block goes here
-// might remove the interface format and/or change it to purely functional
-// TODO: this function is too expensive, might not use slices after all, F
 func (blk *Block) CalculateHash() {
-	nonceSlice := make([]byte, blk.header.nonce)         // might need to rename this later
-	timestampSlice := make([]byte, blk.header.timestamp) // might need to rename this later
-	blk.header.blockHash = sha256.Sum256(append(blk.header.previousHash[:], append(timestampSlice, nonceSlice...)...))
+	var buf bytes.Buffer
+	buf.Write(blk.header.blockHash[:])                    // write blockhash to buffer
+	blockData := blk.header.nonce ^ blk.header.timestamp  // XOR timestamp and nonce
+	binary.LittleEndian.PutUint64(buf.Bytes(), blockData) // write XORed  uint64 data to buffer
+
+	blk.header.blockHash = sha256.Sum256(buf.Bytes())
 }
 
 func (blk *Block) CreateBlock(nonce uint64) {
