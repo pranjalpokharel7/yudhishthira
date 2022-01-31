@@ -33,18 +33,16 @@ func (blk *Block) PrintBlock() {
 	fmt.Println("Nonce: ", blk.header.nonce)
 }
 
-// define how the block is printed
-func (blk Block) String() string {
-	return "This is a block!"
-}
-
-func (blk *Block) CalculateHash() {
+// since this function does not modify the actual block properties, we remove the interface from it
+func CalculateHash(blk *Block, nonce uint64) [HASH_SIZE]byte {
 	var buf bytes.Buffer
-	buf.Write(blk.header.blockHash[:])                    // write blockhash to buffer
-	blockData := blk.header.nonce ^ blk.header.timestamp  // XOR timestamp and nonce
-	binary.LittleEndian.PutUint64(buf.Bytes(), blockData) // write XORed  uint64 data to buffer
 
-	blk.header.blockHash = sha256.Sum256(buf.Bytes())
+	buf.Write(blk.header.blockHash[:])                    // write blockhash to buffer
+	blockData := nonce ^ blk.header.timestamp             // XOR timestamp and nonce
+	binary.LittleEndian.PutUint64(buf.Bytes(), blockData) // write XORed  uint64 data to buffer
+	calculatedHash := sha256.Sum256(buf.Bytes())          // calculate hash
+
+	return calculatedHash
 }
 
 func (blk *Block) CreateBlock(nonce uint64) {
@@ -59,5 +57,5 @@ func (blk *Block) LinkPreviousHash(prevBlock *Block) {
 func (blk *Block) CreateGenesisBlock(nonce uint64) {
 	blk.header.timestamp = uint64(time.Now().Unix())
 	blk.header.nonce = nonce
-	blk.header.blockHash = sha256.Sum256([]byte("Genesis Block"))
+	blk.header.blockHash = sha256.Sum256([]byte(GENESIS_STRING))
 }
