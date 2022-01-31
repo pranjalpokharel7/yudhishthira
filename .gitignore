@@ -17,3 +17,9 @@ vscode/*
 
 # Go workspace file
 go.work
+
+# Build Files
+yudhishthira
+
+# Profile files
+*.pprof
