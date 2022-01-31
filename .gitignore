@@ -1,5 +1,6 @@
 # Editor specific gitignore
 vscode/*
+.vscode/*
 
 # Binaries for programs and plugins
 *.exe
@@ -16,3 +17,9 @@ vscode/*
 
 # Go workspace file
 go.work
+
+# Build Files
+yudhishthira
+
+# Profile files
+*.pprof

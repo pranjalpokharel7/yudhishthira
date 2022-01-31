@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
 )
@@ -11,10 +10,15 @@ func main() {
 	fmt.Println("This is where it begins...")
 
 	// example usage
-	var blk1 blockchain.Block
-	blk1.InitBlock(uint64(time.Now().Unix()))
+	var genBlock, b1 blockchain.Block
+	var bChain blockchain.BlockChain
+	bChain.Difficulty = 3
 
-	var chain blockchain.BlockChain
-	chain.Difficulty = 2 // might reduce to 1, takes too much time even now
-	chain.ProofOfWork(blk1)
+	genBlock.CreateGenesisBlock(1)
+	bChain.AddGenesisBlock(&genBlock)
+
+	b1.CreateBlock(0)
+	bChain.ProofOfWork(&b1)
+	bChain.AddToBlockchain(&b1)
+	bChain.PrintChain()
 }
