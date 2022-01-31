@@ -4,7 +4,7 @@ Why the name 'Yudhishthira'? Because blockchain never lies. ;)
 
 ## Is this project complete?
 
-No, this is a work in progress. This is a part of the minor project of 6th semester BCT undergrad studies at Pulchowk Campus, IOE. 
+No, this is a work in progress.
 
 ## Contribution Guidelines
 
