@@ -21,3 +21,8 @@ go.work
 
 # notes foler
 notes/
+# Build Files
+yudhishthira
+
+# Profile files
+*.pprof

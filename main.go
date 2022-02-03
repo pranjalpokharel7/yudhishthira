@@ -3,29 +3,22 @@ package main
 import (
 	"fmt"
 
-	"github.com/pranjalpokharel7/yudhishthira/merkel"
-	"github.com/pranjalpokharel7/yudhishthira/transaction"
+	"github.com/pranjalpokharel7/yudhishthira/blockchain"
 )
 
 func main() {
 	fmt.Println("This is where it begins...")
 
-	transactions := make([]transaction.Tx, 8)
+	// example usage
+	var genBlock, b1 blockchain.Block
+	var bChain blockchain.BlockChain
+	bChain.Difficulty = 3
 
-	for i := range transactions {
-		transactions[i] = transaction.Tx{
-			InputCount: i,
-		}
-	}
+	genBlock.CreateGenesisBlock(1)
+	bChain.AddGenesisBlock(&genBlock)
 
-	var tree *merkel.MerkelTree
-	tree, _ = merkel.CreateMerkelTree(transactions, tree)
-
-	for i := 0; i < 15; i++ {
-		tx := transaction.Tx{
-			InputCount: i,
-		}
-
-		fmt.Println(tree.VerifyTransaction(tx))
-	}
+	b1.CreateBlock(0)
+	bChain.ProofOfWork(&b1)
+	bChain.AddToBlockchain(&b1)
+	bChain.PrintChain()
 }

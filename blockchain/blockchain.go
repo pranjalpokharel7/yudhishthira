@@ -1,14 +1,62 @@
 package blockchain
 
+import (
+	"encoding/hex"
+	"errors"
+	"strings"
+)
+
 // technically block chain is just a chain of blocks
 // a single int field to determine whether the chain is main chain or test chain
 type BlockChain struct {
-	chainType CHAIN_TYPE
-	Blocks    []Block
+	Difficulty     uint8
+	miningInterval uint64 // time after which a block is compulsorily added to the chain
+	chainType      CHAIN_TYPE
+	Blocks         []Block
 }
 
-// only has the main chain for now
-func createGenesisBlock() {}
+func containsLeadingZeroes(hash [32]byte, difficulty uint8) bool {
+	var hexRepresentation string = hex.EncodeToString(hash[:])
+	var leadingZeroes string = strings.Repeat("0", int(difficulty))
+	return hexRepresentation[0:difficulty] == leadingZeroes
+}
+
+func (bc *BlockChain) ProofOfWork(blk *Block) {
+	for i := uint64(0); i < MAX_ITERATIONS_POW; i++ { // arbitrary 1000 to prevent potential endless loop
+		hash := CalculateHash(blk, i)
+		if containsLeadingZeroes(hash, bc.Difficulty) {
+			blk.header.blockHash = hash
+			blk.header.nonce = i
+
+			break
+		}
+	}
+}
+
+// this function should only be run after proof of work
+func (blockchain *BlockChain) AddToBlockchain(block *Block) error {
+	if len(blockchain.Blocks) == 0 {
+		return errors.New("genesis block not created")
+	}
+	previousBlock := blockchain.Blocks[len(blockchain.Blocks)-1]
+	block.LinkPreviousHash(&previousBlock)
+	blockchain.Blocks = append(blockchain.Blocks, *block)
+	return nil
+}
+
+func (blockchain *BlockChain) PrintChain() {
+	for _, value := range blockchain.Blocks {
+		value.PrintBlock()
+	}
+}
+
+func (blockchain *BlockChain) AddGenesisBlock(genesisBlock *Block) error {
+	if len(blockchain.Blocks) != 0 {
+		return errors.New("genesis block already added to the chain")
+	}
+	blockchain.Blocks = append(blockchain.Blocks, *genesisBlock)
+	return nil
+}
 
 // load block chain from JSON format
 func loadBlockChain() {}
