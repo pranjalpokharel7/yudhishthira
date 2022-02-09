@@ -1,5 +1,6 @@
 package wallet
 
-// nobody uses 1024 length RSA keys
-// increase to 4096 if felt less secure
-const RSA_KEY_SIZE = 2048
+const (
+	RSA_KEY_SIZE  = 2048 // increase to 4096 for more security
+	CHECKSUM_SIZE = 4    // bytes
+)
