@@ -12,7 +12,6 @@ import (
 func main() {
 	fmt.Println("This is where it begins...")
 
-	// example usage
 	var genBlock, b1 blockchain.Block
 	var bChain blockchain.BlockChain
 	bChain.Difficulty = 3
