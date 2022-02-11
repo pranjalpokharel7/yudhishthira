@@ -59,3 +59,8 @@ func (blockchain *BlockChain) AddGenesisBlock(genesisBlock *Block) error {
 	blockchain.Blocks = append(blockchain.Blocks, *genesisBlock)
 	return nil
 }
+
+// TODO: Complete this function
+func (blockchain *BlockChain) GetHeight() int32 {
+	return 0
+}

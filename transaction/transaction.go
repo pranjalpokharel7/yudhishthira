@@ -9,3 +9,11 @@ type Tx struct {
 	BuyerHash  []byte
 	Amount     uint64
 }
+
+// TODO: serialize this part
+func (tx Tx) Serialize() []byte {
+	var data []byte
+	data = tx.ItemHash
+
+	return data
+}

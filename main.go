@@ -17,8 +17,8 @@ func main() {
 	bChain.AddGenesisBlock(&genBlock)
 
 	b1.CreateBlock(0)
-	bChain.ProofOfWork(&b1)
 	bChain.AddToBlockchain(&b1)
-	// bChain.PrintChain()
+	bChain.ProofOfWork(&b1)
+	bChain.PrintChain()
 
 }

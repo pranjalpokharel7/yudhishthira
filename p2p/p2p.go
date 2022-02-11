@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"bytes"
+	"encoding/gob"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,9 +13,12 @@ import (
 	//internal inports
 
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
+	"github.com/pranjalpokharel7/yudhishthira/transaction"
 )
 
-var bChain *blockchain.BlockChain
+// TODO: test everything
+
+// var bChain *blockchain.BlockChain
 var mutex sync.Mutex
 
 const (
@@ -50,6 +54,7 @@ type Block struct {
 type Version struct {
 	Timestamp   uint64
 	AddressFrom string
+	Height      int32
 }
 
 // contains all the address of the connected nodes
@@ -75,7 +80,14 @@ type GetBlocks struct {
 // transaction wrapper
 type Tx struct {
 	AddrFrom    string
-	Transaction []byte
+	Transaction []byte //
+}
+
+// For details follow this link: https://developer.bitcoin.org/reference/p2p_networking.html#inv
+type Inv struct {
+	AddrFrom string
+	Type     int32    // specify what type of inventory are we sending
+	data     [][]byte // 2D array of byte, each byte array contains a transaction
 }
 
 func CommandToBytes(cmd string) []byte {
@@ -131,16 +143,93 @@ func sendData(addr string, data []byte) {
 
 }
 
-func SendBlocks(addr string, blockchain *blockchain.BlockChain) {
-	// TODO: Use ppok's json of blockchain and encode it
-	// TODO: Decide on the encoding method
+// Sends get block request to another node
+func SendGetBlocks(addr string) {
 	var blocks = GetBlocks{
-		AddrFrom: addr,
-		// data:     ,
+		AddrFrom: nodeAddress,
 	}
+	// first 12 character is command, rest is the payload
+	// check this link for more details
+	//READ: https://developer.bitcoin.org/reference/p2p_networking.html#headers
+	info := append(CommandToBytes("getblocks"), GobEncode(blocks)...)
 
-	sendData(addr, blocks.data)
+	sendData(addr, info)
 
+}
+
+// sends all the blocks
+func SendBlock(addr string, block *blockchain.Block) {
+	data, err := block.MarshalBlockToJSON()
+	if err != nil {
+		fmt.Printf("Block serialization error: %s\n", err)
+		return
+	}
+	var blocks = Block{
+		AddrFrom: nodeAddress,
+		Block:    data,
+	}
+	info := append(CommandToBytes("block"), GobEncode(blocks)...)
+
+	sendData(addr, info)
+}
+
+// sends all the known address
+func SendAddress(addr string, block *blockchain.Block) {
+	address := Address{AddrList: knownNodes}
+
+	info := append(CommandToBytes("address"), GobEncode(address)...)
+
+	sendData(addr, info)
+}
+
+//sends get data request, data can be of any type
+// here type is represented by id
+func setGetData(addr string, kind int32, id []byte) {
+	data := GobEncode(GetData{
+		AddrFrom: nodeAddress,
+		Type:     int32(kind),
+		data:     id,
+	})
+
+	data = append(CommandToBytes("getdata"), data...)
+	sendData(addr, data)
+}
+
+// send a particular transaction to the given address
+func setTx(addr string, tx transaction.Tx) {
+	data := GobEncode(Tx{
+		AddrFrom:    nodeAddress,
+		Transaction: tx.Serialize(),
+	})
+
+	data = append(CommandToBytes("getdata"), data...)
+	sendData(addr, data)
+}
+
+func SendVersion(addr string, bChain *blockchain.BlockChain) {
+	height := bChain.GetHeight()
+	data := GobEncode(Version{
+		AddressFrom: nodeAddress,
+		Height:      height,
+	})
+
+	data = append(CommandToBytes("getversion"), data...)
+
+	sendData(addr, data)
+}
+
+//transmits one or more inventories of objects known to the transmitting peer.
+// The receiving peer can compare the inventories from an “inv” message against the inventories it has already seen, and then use a follow-up message to request unseen objects.
+// For more info: https://developer.bitcoin.org/reference/p2p_networking.html#inv
+func sendInv(addr string, kind int32, inventories [][]byte) {
+	data := GobEncode(Inv{
+		AddrFrom: nodeAddress,
+		Type:     int32(kind),
+		data:     inventories,
+	})
+
+	data = append(CommandToBytes("inv"), data...)
+	sendData(addr, data)
 }
 
 func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
@@ -152,10 +241,23 @@ func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 		log.Panic(err)
 	}
 
+	// get all the required commands
 	command := req[:12]
 
 	switch command {
 	default:
 		fmt.Println("Unknown command")
 	}
+}
+
+func GobEncode(data interface{}) []byte {
+	var buff bytes.Buffer
+
+	enc := gob.NewEncoder(&buff)
+	err := enc.Encode(data)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return buff.Bytes()
 }
