@@ -26,3 +26,7 @@ yudhishthira
 
 # Keystore
 *.keystore
+
+
+# Personal TODO file
+TODO.*
