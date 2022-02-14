@@ -3,22 +3,19 @@ package main
 import (
 	"fmt"
 
-	"github.com/pranjalpokharel7/yudhishthira/blockchain"
+	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
 
 func main() {
 	fmt.Println("This is where it begins...")
 
-	// example usage
-	var genBlock, b1 blockchain.Block
-	var bChain blockchain.BlockChain
-	bChain.Difficulty = 3
-
-	genBlock.CreateGenesisBlock(1)
-	bChain.AddGenesisBlock(&genBlock)
-
-	b1.CreateBlock(0)
-	bChain.ProofOfWork(&b1)
-	bChain.AddToBlockchain(&b1)
-	bChain.PrintChain()
+	var w wallet.Wallet
+	w.GenerateKeyPair()
+	err := w.GenerateAddress()
+	if err != nil {
+		panic(err)
+	}
+	pubKeyBytes, _ := wallet.PublicKeyToBytes(&w.PublicKey)
+	fmt.Printf("Wallet Public Key: %x\n", pubKeyBytes)
+	fmt.Printf("Wallet Address: %s\n", w.Address)
 }
