@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/gob"
+	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -78,11 +79,11 @@ func deriveChecksum(pubKeyHash []byte) []byte {
 	return hashFinal[:CHECKSUM_SIZE]
 }
 
-func (wallet *Wallet) LoadWalletFromFile() error {
+func (wallet *Wallet) LoadWalletFromFile(walletFile string) error {
 	if _, err := os.Stat(WALLET_FILE); os.IsNotExist(err) {
 		return err
 	}
-	fileContent, err := ioutil.ReadFile(WALLET_FILE)
+	fileContent, err := ioutil.ReadFile(walletFile)
 	if err != nil {
 		return err
 	}
@@ -91,13 +92,32 @@ func (wallet *Wallet) LoadWalletFromFile() error {
 	return err // err == nil or error
 }
 
-func (wallet *Wallet) SaveWalletToFile() error {
+func (wallet *Wallet) SaveWalletToFile(walletFile string) error {
 	var wBuffer bytes.Buffer
 	err := gob.NewEncoder(&wBuffer).Encode(wallet)
 	if err != nil {
 		return err
 	}
 	// 0644 for permissions
-	err = ioutil.WriteFile(WALLET_FILE, wBuffer.Bytes(), 0644)
+	err = ioutil.WriteFile(walletFile, wBuffer.Bytes(), 0644)
 	return err // if nil then nil is returned, else error is returned
+}
+
+func GenerateWallet(walletFile string) error {
+	var wlt Wallet
+	err := wlt.GenerateKeyPair()
+	if err != nil {
+		return err
+	}
+	err = wlt.GenerateAddress()
+	if err != nil {
+		return err
+	}
+	err = wlt.SaveWalletToFile(walletFile)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Wallet generated and saved to %s\n", walletFile)
+	fmt.Printf("Your address is %s", wlt.Address)
+	return nil
 }
