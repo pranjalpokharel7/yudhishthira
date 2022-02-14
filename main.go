@@ -11,11 +11,11 @@ func main() {
 
 	var w wallet.Wallet
 	w.GenerateKeyPair()
-	addr, err := w.GenerateAddress()
+	err := w.GenerateAddress()
 	if err != nil {
 		panic(err)
 	}
 	pubKeyBytes, _ := wallet.PublicKeyToBytes(&w.PublicKey)
 	fmt.Printf("Wallet Public Key: %x\n", pubKeyBytes)
-	fmt.Printf("Wallet Address: %s\n", addr)
+	fmt.Printf("Wallet Address: %s\n", w.Address)
 }
