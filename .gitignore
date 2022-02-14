@@ -25,4 +25,4 @@ yudhishthira
 *.pprof
 
 # Keystore
-keystore
+*.keystore
