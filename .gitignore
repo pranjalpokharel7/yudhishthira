@@ -23,3 +23,6 @@ yudhishthira
 
 # Profile files
 *.pprof
+
+# Keystore
+*.keystore
