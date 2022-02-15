@@ -17,8 +17,8 @@ import (
 )
 
 // TODO: test everything
+// TODO: Implement Initial Block Download
 
-// var bChain *blockchain.BlockChain
 var mutex sync.Mutex
 
 const (
@@ -32,6 +32,7 @@ const (
 var (
 	knownNodes  []string
 	nodeAddress string
+	memoryPool  = make(map[string]transaction.Tx)
 )
 
 // const for types
@@ -44,6 +45,8 @@ const (
 	INV_TYPE     = 3
 )
 
+type MESSAGE_TYPE int
+
 // wrapper struct to send a block
 type Block struct {
 	AddrFrom string
@@ -54,7 +57,7 @@ type Block struct {
 type Version struct {
 	Timestamp   uint64
 	AddressFrom string
-	Height      int32
+	Height      int
 }
 
 // contains all the address of the connected nodes
@@ -67,7 +70,7 @@ type Address struct {
 //TODO: add other if required
 type GetData struct {
 	AddrFrom string
-	Type     int32
+	Type     MESSAGE_TYPE
 	data     []byte // needs to be a serialized array of bytes
 }
 
@@ -86,8 +89,8 @@ type Tx struct {
 // For details follow this link: https://developer.bitcoin.org/reference/p2p_networking.html#inv
 type Inv struct {
 	AddrFrom string
-	Type     int32    // specify what type of inventory are we sending
-	data     [][]byte // 2D array of byte, each byte array contains a transaction
+	Type     MESSAGE_TYPE // specify what type of inventory are we sending
+	data     [][]byte     // 2D array of byte, each byte array contains a transaction
 }
 
 func CommandToBytes(cmd string) []byte {
@@ -184,10 +187,10 @@ func SendAddress(addr string, block *blockchain.Block) {
 
 //sends get data request, data can be of any type
 // here type is represented by id
-func setGetData(addr string, kind int32, id []byte) {
+func sendGetData(addr string, kind MESSAGE_TYPE, id []byte) {
 	data := GobEncode(GetData{
 		AddrFrom: nodeAddress,
-		Type:     int32(kind),
+		Type:     kind,
 		data:     id,
 	})
 
@@ -197,12 +200,18 @@ func setGetData(addr string, kind int32, id []byte) {
 
 // send a particular transaction to the given address
 func setTx(addr string, tx transaction.Tx) {
+	serializedData, err := tx.Serialize()
+
+	if err != nil {
+		fmt.Printf("Transaction serialization error: %s\n", err)
+		return
+	}
 	data := GobEncode(Tx{
 		AddrFrom:    nodeAddress,
-		Transaction: tx.Serialize(),
+		Transaction: serializedData,
 	})
 
-	data = append(CommandToBytes("getdata"), data...)
+	data = append(CommandToBytes("gettx"), data...)
 	sendData(addr, data)
 }
 
@@ -221,10 +230,10 @@ func SendVersion(addr string, bChain *blockchain.BlockChain) {
 //transmits one or more inventories of objects known to the transmitting peer.
 // The receiving peer can compare the inventories from an “inv” message against the inventories it has already seen, and then use a follow-up message to request unseen objects.
 // For more info: https://developer.bitcoin.org/reference/p2p_networking.html#inv
-func sendInv(addr string, kind int32, inventories [][]byte) {
+func sendInv(addr string, kind MESSAGE_TYPE, inventories [][]byte) {
 	data := GobEncode(Inv{
 		AddrFrom: nodeAddress,
-		Type:     int32(kind),
+		Type:     kind,
 		data:     inventories,
 	})
 
@@ -232,8 +241,79 @@ func sendInv(addr string, kind int32, inventories [][]byte) {
 	sendData(addr, data)
 }
 
+/*
+handle function receives all the info and you guessed it handles all the encoded streams of data
+*/
+
+// receives all the address from the network
+func HandleAddress(request []byte) {
+	//send address sends all the known nodes address, now we have to decode it
+	var buff bytes.Buffer
+	var payload Address
+
+	buff.Write(request[commandLength:])
+	dec := gob.NewDecoder(&buff)
+	err := dec.Decode(&payload)
+
+	if err != nil {
+		log.Panic(err)
+	}
+
+	knownNodes = append(knownNodes, payload.AddrList...)
+
+	for _, node := range knownNodes {
+		// request blocks with all the nodes
+		SendGetBlocks(node)
+	}
+}
+
+func HandleInv(request []byte) {
+	var buff bytes.Buffer
+	var payload Inv
+
+	buff.Write(request[commandLength:])
+	dec := gob.NewDecoder(&buff)
+
+	// what this does is reads from the buff buffer and stores the decoded info in payload struct
+	// also could have done err := gob.NewDecoder(&buff).Decode(&payload)
+	err := dec.Decode(&payload)
+
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// TODO: Maybe create a string from the type data for just information
+	log.Printf("Received %d inventories of type %d", len(payload.data), payload.Type)
+
+	if payload.Type == BLOCK_TYPE {
+		blocksInTransit := payload.data
+
+		blockHash := payload.data[0]
+		sendGetData(payload.AddrFrom, BLOCK_TYPE, blockHash)
+
+		// TODO: Check this out for more details(what this code does)
+		newInTransit := [][]byte{}
+		for _, b := range blocksInTransit {
+			if bytes.Compare(b, blockHash) != 0 {
+				newInTransit = append(newInTransit, b)
+			}
+		}
+		blocksInTransit = newInTransit
+	}
+
+	// TODO: Implement this if branch and memory pool too
+	if payload.Type == TX_TYPE {
+		// txID := payload.data[0]
+
+		// if memoryPool[hex.EncodeToString(txID)].ID == nil {
+		// 	SendGetData(payload.AddrFrom, "tx", txID)
+		// }
+	}
+
+}
+
 func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
-	// Reader is inderface with read method
+	// Reader is interface with read method
 	req, err := ioutil.ReadAll(conn)
 
 	defer conn.Close()
@@ -242,19 +322,51 @@ func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 	}
 
 	// get all the required commands
-	command := req[:12]
+	command := BytesToCommand(req[:12])
 
+	// TODO: Implement all the required functions
 	switch command {
 	default:
 		fmt.Println("Unknown command")
+		return
+
+	case "inv":
+		fmt.Println("Sending inventory")
+
+	case "getversion":
+		fmt.Println("Sending version")
+		break
+
+	case "getdata":
+		fmt.Println("Sending data of a type")
+		break
+
+	case "gettx":
+		fmt.Println("Sending Transaction")
+		break
+
+	case "address":
+		fmt.Println("Sending known addresses")
+		break
+
+	case "block":
+		fmt.Println("Sending a block")
+		break
+
+	case "getblocks":
+		break
+
 	}
 }
 
+// Gob Encode
+// Details: https://pkg.go.dev/encoding/gob
 func GobEncode(data interface{}) []byte {
 	var buff bytes.Buffer
 
-	enc := gob.NewEncoder(&buff)
-	err := enc.Encode(data)
+	// the encoded data is stored in buff and the data to be encoded is `data`
+	err := gob.NewEncoder(&buff).Encode(data)
+
 	if err != nil {
 		log.Panic(err)
 	}

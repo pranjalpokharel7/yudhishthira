@@ -11,9 +11,6 @@ type Tx struct {
 }
 
 // TODO: serialize this part
-func (tx Tx) Serialize() []byte {
-	var data []byte
-	data = tx.ItemHash
-
-	return data
+func (tx Tx) Serialize() ([]byte, error) {
+	return nil, nil
 }

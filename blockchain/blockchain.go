@@ -61,6 +61,6 @@ func (blockchain *BlockChain) AddGenesisBlock(genesisBlock *Block) error {
 }
 
 // TODO: Complete this function
-func (blockchain *BlockChain) GetHeight() int32 {
-	return 0
+func (blockchain *BlockChain) GetHeight() int {
+	return len(blockchain.Blocks)
 }
