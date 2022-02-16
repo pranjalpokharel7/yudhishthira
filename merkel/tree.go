@@ -3,6 +3,7 @@ package merkel
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash"
@@ -13,19 +14,19 @@ import (
 
 // node struct, to encompass data
 type Node struct {
-	HashValue    []byte // contains the hashed byte
+	HashValue    []byte `json:"hash"` // contains the hashed byte
 	parent       *Node  // parent node
 	right        *Node
 	left         *Node
-	tx           transaction.Tx // transaction for data storage
+	Tx           transaction.Tx `json:"tx"` // transaction for data storage
 	hashStrategy func(transaction.Tx) hash.Hash
 	tree         *MerkelTree
 }
 
 // Merkel tree to store all the info
 type MerkelTree struct {
-	root         *Node
-	leafNodes    []*Node
+	Root         *Node   `json:"rootNode"`
+	LeafNodes    []*Node `json:"leafNodes"`
 	hashStrategy func([]byte) string
 }
 
@@ -59,14 +60,14 @@ func CreateMerkelTree(transactions []transaction.Tx, tree *MerkelTree) (*MerkelT
 			parent:    nil,
 			right:     nil,
 			left:      nil,
-			tx:        tx,
+			Tx:        tx,
 		}
 
-		tree.leafNodes = append(tree.leafNodes, &node)
+		tree.LeafNodes = append(tree.LeafNodes, &node)
 	}
 
 	var err error
-	tree.root, err = createMerkelTreeIntermediate(tree.leafNodes, tree)
+	tree.Root, err = createMerkelTreeIntermediate(tree.LeafNodes, tree)
 
 	return tree, err
 }
@@ -74,15 +75,15 @@ func CreateMerkelTree(transactions []transaction.Tx, tree *MerkelTree) (*MerkelT
 func AddDataMerkelTree(tree *MerkelTree, transactions ...transaction.Tx) (*MerkelTree, error) {
 	for _, tx := range transactions {
 		node := &Node{
-			tx:        tx,
+			Tx:        tx,
 			parent:    nil,
 			HashValue: hashTransaction(tx),
 		}
-		tree.leafNodes = append(tree.leafNodes, node)
+		tree.LeafNodes = append(tree.LeafNodes, node)
 	}
 
 	var err error
-	tree.root, err = createMerkelTreeIntermediate(tree.leafNodes, tree)
+	tree.Root, err = createMerkelTreeIntermediate(tree.LeafNodes, tree)
 
 	return tree, err
 }
@@ -93,6 +94,10 @@ func createMerkelTreeIntermediate(nodes []*Node, tree *MerkelTree) (*Node, error
 
 	if len(nodes) == 1 {
 		return nodes[0], nil
+	}
+
+	if tree.hashStrategy == nil {
+		tree.hashStrategy = hashDataSha256
 	}
 
 	for i := 0; i < len(nodes); i += 2 {
@@ -135,15 +140,15 @@ func (node *Node) Print() {
 }
 
 func (tree *MerkelTree) GetRoot() *Node {
-	return tree.root
+	return tree.Root
 }
 
 func (tree *MerkelTree) GetLengthLeaves() int {
-	return len(tree.leafNodes)
+	return len(tree.LeafNodes)
 }
 
 func (tree *MerkelTree) VerifyTransaction(tx transaction.Tx) bool {
-	for _, node := range tree.leafNodes {
+	for _, node := range tree.LeafNodes {
 		if bytes.Compare(hashTransaction(tx), node.HashValue) == 0 {
 			parentNode := node.parent
 			for parentNode != nil {
@@ -162,4 +167,95 @@ func (tree *MerkelTree) VerifyTransaction(tx transaction.Tx) bool {
 	}
 
 	return false
+}
+
+func (tree MerkelTree) MarshalToJSON() ([]byte, error) {
+	tree_json, err := json.Marshal(tree)
+	return tree_json, err
+}
+
+func UnMarshalFromJSON(jsonData []byte) (*MerkelTree, error) {
+	var unmarshalInterface map[string]interface{}
+	if err := json.Unmarshal(jsonData, &unmarshalInterface); err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	var tree *MerkelTree = &MerkelTree{}
+
+	for k, v := range unmarshalInterface {
+		if k == "rootNode" {
+			tree.Root = &Node{}
+			tree.Root = HandleNodeValue(v.(map[string]interface{}))
+		}
+
+		if k == "leafNodes" {
+			tree.LeafNodes = HandleNodesArray(v.([]interface{}))
+		}
+	}
+
+	// complete the merkel tree from leaf nodes
+	var err error
+	tree.Root, err = createMerkelTreeIntermediate(tree.LeafNodes, tree)
+
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	return tree, nil
+}
+
+func HandleNodesArray(nodeArray []interface{}) []*Node {
+	var nodes []*Node
+
+	for _, nodeJsonData := range nodeArray {
+		node := HandleNodeValue(nodeJsonData.(map[string]interface{}))
+		nodes = append(nodes, node)
+	}
+
+	return nodes
+}
+
+func HandleNodeValue(jsonData map[string]interface{}) *Node {
+
+	node := &Node{}
+
+	for k, v := range jsonData {
+		if k == "hash" {
+			node.HashValue = []byte(v.(string))
+		} else if k == "tx" {
+			node.Tx = *HandleTransaction(v.(map[string]interface{}))
+		}
+	}
+
+	return node
+}
+
+func HandleTransaction(jsonData map[string]interface{}) *transaction.Tx {
+	tx := &transaction.Tx{}
+
+	for k, v := range jsonData {
+		if k == "inputCount" {
+			tx.InputCount = int(v.(float64))
+		} else if k == "outputCount" {
+			tx.OutputCount = int(v.(float64))
+		} else if k == "itemHash" {
+			if v != nil {
+				tx.ItemHash = v.([]byte)
+			}
+		} else if k == "sellerHash" {
+			if v != nil {
+				tx.SellerHash = v.([]byte)
+			}
+		} else if k == "buyerHash" {
+			if v != nil {
+				tx.BuyerHash = v.([]byte)
+			}
+		} else if k == "amount" {
+			tx.Amount = uint64(v.(float64))
+		}
+	}
+
+	return tx
 }
