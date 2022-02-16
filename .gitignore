@@ -26,3 +26,6 @@ yudhishthira
 
 # Keystore
 *.keystore
+
+# Database Folder
+db/
