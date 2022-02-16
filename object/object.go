@@ -51,15 +51,18 @@ func (objectInstance *Object) LoadCSVData(objectFilePath string) error {
 }
 
 func (objectInstance *Object) HashObject() []byte {
-	var hashBuffer bytes.Buffer
+	var buf bytes.Buffer
 
-	hashBuffer.Write(objectInstance.Name)
-	hashBuffer.Write(objectInstance.UniquePhysicalID)
-	hashBuffer.Write(objectInstance.Brand)
-	hashBuffer.Write([]byte(objectInstance.Category))
-	binary.LittleEndian.PutUint64(hashBuffer.Bytes(), objectInstance.BasePrice)
+	basePriceBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(basePriceBytes, objectInstance.BasePrice)
+	buf.Write(basePriceBytes)
 
-	objectHash := sha256.Sum256(hashBuffer.Bytes())
+	buf.Write(objectInstance.Name)
+	buf.Write(objectInstance.UniquePhysicalID)
+	buf.Write(objectInstance.Brand)
+	buf.Write([]byte(objectInstance.Category))
+
+	objectHash := sha256.Sum256(buf.Bytes())
 	return objectHash[:]
 }
 
