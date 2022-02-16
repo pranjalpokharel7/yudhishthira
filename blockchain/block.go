@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/gob"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -19,6 +21,27 @@ type Block struct {
 	PreviousHash []byte // hash of previous block
 	BlockHash    []byte // hash of the current block
 	// transactions []transaction.Tx
+}
+
+func (blk *Block) String() string {
+	var lines []string
+	lines = append(lines, fmt.Sprintf("------------ Block: %x ------------", blk.BlockHash))
+	lines = append(lines, fmt.Sprintf("Nonce: %d", blk.Nonce))
+	lines = append(lines, fmt.Sprintf("Timestamp: %d", blk.Timestamp))
+	lines = append(lines, fmt.Sprintf("Previous Hash: %x", blk.PreviousHash))
+	return strings.Join(lines, "\n")
+}
+
+func (blk *Block) SerializeToGOB() ([]byte, error) {
+	var encoded bytes.Buffer
+	err := gob.NewEncoder(&encoded).Encode(blk)
+	return encoded.Bytes(), err
+}
+
+func DeserializeFromGOB(serializedBlock []byte) (*Block, error) {
+	var blk Block
+	err := gob.NewDecoder(bytes.NewReader(serializedBlock)).Decode(&blk)
+	return &blk, err
 }
 
 // cast []byte to string before marshaling
@@ -70,27 +93,32 @@ func UnmarshalJSONTOBlock(jsonData []byte) (*Block, error) {
 func CalculateHash(blk *Block, nonce uint64) []byte {
 	var buf bytes.Buffer
 
-	buf.Write(blk.BlockHash[:])                           // write blockhash to buffer
-	blockData := nonce ^ blk.Timestamp                    // XOR timestamp and nonce
-	binary.LittleEndian.PutUint64(buf.Bytes(), blockData) // write XORed  uint64 data to buffer
-	calculatedHash := sha256.Sum256(buf.Bytes())          // calculate hash
+	blockBytes := make([]byte, 8)
+	blockData := nonce ^ blk.Timestamp                   // XOR timestamp and nonce
+	binary.LittleEndian.PutUint64(blockBytes, blockData) // write XORed  uint64 data to buffer
+	buf.Write(blockBytes)
+	buf.Write(blk.PreviousHash[:])               // write blockhash to buffer
+	calculatedHash := sha256.Sum256(buf.Bytes()) // calculate hash
 
 	return calculatedHash[:]
 }
 
-func (blk *Block) CreateBlock(nonce uint64) {
+func CreateBlock() *Block {
+	var blk Block
 	blk.Timestamp = uint64(time.Now().Unix())
-	blk.Nonce = nonce
+	return &blk
 }
 
 func (blk *Block) LinkPreviousHash(prevBlock *Block) {
 	blk.PreviousHash = prevBlock.BlockHash
 }
 
-func (blk *Block) CreateGenesisBlock(nonce uint64) {
+func (blk *Block) CreateGenesisBlock() {
+	// only allow this method to be called if blockchain is empty?
 	blk.Timestamp = uint64(time.Now().Unix())
-	blk.Nonce = nonce
-
+	blk.PreviousHash = nil
 	b_hash := sha256.Sum256([]byte(GENESIS_STRING))
 	blk.BlockHash = b_hash[:]
 }
+
+func (blk *Block) AddTransactionsFromPool() {}
