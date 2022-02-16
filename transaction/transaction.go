@@ -15,16 +15,27 @@ type TxInput struct {
 	Signature []byte // hmm, need to tink
 	PubKey    []byte // public key of seller I guess? can be used to calculate PubKeyHash for verification
 }
-type Tx struct {
-	TxID   []byte
-	Input  TxInput
-	Output TxOutput
-	Amount uint64
 
-	// remove input count and output count after making adjustments in the merkel tree
-	InputCount  int
-	OutputCount int
+type Tx struct {
+	InputCount  int `json:"inputCount"`
+	OutputCount int `json:"outputCount"`
+
+	ItemHash   []byte `json:"itemHash"`
+	SellerHash []byte `json:"sellerHash"`
+	BuyerHash  []byte `json:"buyerHash"`
+	Amount     uint64 `json:"amount"`
 }
+
+// type Tx struct {
+// 	TxID   []byte
+// 	Input  TxInput
+// 	Output TxOutput
+// 	Amount uint64
+
+// 	// remove input count and output count after making adjustments in the merkel tree
+// 	InputCount  int
+// 	OutputCount int
+// }
 
 func (tx *Tx) SerializeToGOB() ([]byte, error) {
 	var encoded bytes.Buffer
@@ -39,7 +50,7 @@ func (tx *Tx) SerializeToGOB() ([]byte, error) {
 func (tx *Tx) CalculateTxHash() ([]byte, error) {
 	var hash [32]byte
 	txCopy := *tx
-	txCopy.TxID = []byte{}
+	// txCopy.TxID = []byte{} // TODO: insert this field after changing merkel code
 	txCopySerialized, err := txCopy.SerializeToGOB()
 	if err != nil {
 		return nil, err
