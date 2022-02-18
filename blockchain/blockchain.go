@@ -64,3 +64,13 @@ func (blockchain *BlockChain) AddGenesisBlock(genesisBlock *Block) error {
 func (blockchain *BlockChain) GetHeight() int {
 	return len(blockchain.Blocks)
 }
+
+func (blockchain *BlockChain) GetBlockHashes() [][]byte {
+	var hashes [][]byte
+
+	return hashes
+}
+
+func (blockchain *BlockChain) GetBlock(blockhash []byte) (Block, error) {
+	return Block{}, nil
+}
