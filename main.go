@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/pranjalpokharel7/yudhishthira/cli"
 	"github.com/pranjalpokharel7/yudhishthira/merkel"
 	"github.com/pranjalpokharel7/yudhishthira/transaction"
 )
@@ -43,4 +44,5 @@ func main() {
 	} else {
 		merkel.UnMarshalFromJSON(data)
 	}
+	cli.RunCLI()
 }

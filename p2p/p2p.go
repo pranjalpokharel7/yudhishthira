@@ -279,8 +279,9 @@ func HandleBlock(request []byte, bChain *blockchain.BlockChain) {
 		log.Panic(err)
 	}
 
-	block, err := blockchain.UnmarshalJSONTOBlock(payload.Block)
-	bChain.AddToBlockchain(block)
+	// TODO: Implement Add block to blockchain method
+	// block, err := blockchain.UnmarshalJSONTOBlock(payload.Block)
+	// bChain.AddToBlockchain(block)
 }
 
 // response to get block request
