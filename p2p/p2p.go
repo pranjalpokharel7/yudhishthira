@@ -267,6 +267,7 @@ func HandleAddress(request []byte) {
 	}
 }
 
+// adds the received block to the chain
 func HandleBlock(request []byte, bChain *blockchain.BlockChain) {
 	var buff bytes.Buffer
 	var payload Block
@@ -342,6 +343,7 @@ func HandleVersion(request []byte, chain *blockchain.BlockChain) {
 	bestHeight := chain.GetHeight()
 	otherheight := payload.Height
 
+	// if the best height is less than the height on the network then request get blocks
 	if bestHeight < otherheight {
 		SendGetBlocks(payload.AddressFrom)
 	} else if bestHeight > otherheight {
