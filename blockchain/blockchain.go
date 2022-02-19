@@ -36,7 +36,7 @@ func InitBlockChain() *BlockChain {
 			err = ProofOfWork(&genesisBlock, DIFFICULTY)
 			utility.ErrThenPanic(err)
 
-			genesisSerialized, err := genesisBlock.SerializeToGOB()
+			genesisSerialized, err := genesisBlock.SerializeBlockToGOB()
 			utility.ErrThenPanic(err)
 
 			err = txn.Set(genesisBlock.BlockHash, genesisSerialized)
@@ -87,7 +87,7 @@ func (blockchain *BlockChain) AddBlock(latestBlock *Block) {
 	ProofOfWork(latestBlock, DIFFICULTY) // TODO: create an abstraction methodf MineBlock(), POW can only be run after linking previous hash
 
 	err = blockchain.Database.Update(func(txn *badger.Txn) error {
-		latestBlockSerialized, err := latestBlock.SerializeToGOB()
+		latestBlockSerialized, err := latestBlock.SerializeBlockToGOB()
 		utility.ErrThenPanic(err)
 
 		err = txn.Set(latestBlock.BlockHash, latestBlockSerialized)
@@ -115,7 +115,7 @@ func (iter *BlockChainIterator) GetBlockAndIter() *Block {
 		item, err := txn.Get(iter.CurrentHash)
 		utility.ErrThenPanic(err)
 		err = item.Value(func(val []byte) error {
-			block, err = DeserializeFromGOB(val)
+			block, err = DeserializeBlockFromGOB(val)
 			return err
 		})
 		return err
@@ -126,29 +126,9 @@ func (iter *BlockChainIterator) GetBlockAndIter() *Block {
 	return block
 }
 
-// this function should only be run after proof of work
-// TODO: call proof of work from within this function
-// func (blockchain *BlockChain) AddToBlockchain(block *Block) error {
-// 	if len(blockchain.Blocks) == 0 {
-// 		return errors.New("genesis block not created")
-// 	}
-// 	previousBlock := blockchain.Blocks[len(blockchain.Blocks)-1]
-// 	block.LinkPreviousHash(&previousBlock)
-// 	blockchain.Blocks = append(blockchain.Blocks, *block)
-// 	return nil
-// }
-
-// func (blockchain *BlockChain) PrintChain() {
-// 	for _, block := range blockchain.Blocks {
-// 		blockJson, _ := block.MarshalBlockToJSON()
-// 		fmt.Println(string(blockJson))
-// 	}
-// }
-
-// func (blockchain *BlockChain) AddGenesisBlock(genesisBlock *Block) error {
-// 	if len(blockchain.Blocks) != 0 {
-// 		return errors.New("genesis block already added to the chain")
-// 	}
-// 	blockchain.Blocks = append(blockchain.Blocks, *genesisBlock)
-// 	return nil
-// }
+// i.e. find unspent transaction outputs - UTXOs
+func (blockchain *BlockChain) FindItemsOwned(pubKeyHash []byte) (map[string]Tx, error) {
+	objectsOwned := make(map[string]Tx)
+	// var objectsOwned [][]byte
+	return objectsOwned, nil
+}
