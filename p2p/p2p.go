@@ -14,7 +14,6 @@ import (
 	//internal inports
 
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
-	"github.com/pranjalpokharel7/yudhishthira/transaction"
 )
 
 // TODO: test everything
@@ -35,7 +34,7 @@ var (
 	nodeAddress string   // address of this node
 
 	// here string is the transaction id and it point to the actual transaction
-	memoryPool = make(map[string]transaction.Tx)
+	memoryPool = make(map[string]blockchain.Tx)
 )
 
 // const for types
@@ -199,8 +198,8 @@ func sendGetData(addr string, kind MESSAGE_TYPE, id []byte) {
 }
 
 // send a particular transaction to the given address
-func sendTx(addr string, tx transaction.Tx) {
-	serializedData, err := tx.Serialize()
+func sendTx(addr string, tx blockchain.Tx) {
+	serializedData, err := tx.SerializeTxToGOB()
 
 	if err != nil {
 		fmt.Printf("Transaction serialization error: %s\n", err)
@@ -367,14 +366,14 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 		log.Panic(err)
 	}
 
-	tx, err := transaction.Deserialize(payload.Transaction)
+	tx, err := blockchain.DeserializeTxFromGOB(payload.Transaction)
 
 	if err != nil {
 		return
 	}
 
-	txHash := tx.CalculateHash()
-	memoryPool[hex.EncodeToString(tx.CalculateHash())] = *tx
+	txHash, err := tx.CalculateTxHash()
+	memoryPool[hex.EncodeToString(txHash)] = *tx
 
 	if nodeAddress == knownNodes[0] {
 		for _, node := range knownNodes {
@@ -428,8 +427,9 @@ func HandleInv(request []byte) {
 
 	if payload.Type == TX_TYPE {
 		txID := payload.data[0]
-		tx, _ := memoryPool[hex.EncodeToString(txID)].Serialize()
-		if tx == nil {
+		tx := memoryPool[hex.EncodeToString(txID)]
+		txByte, _ := tx.SerializeTxToGOB()
+		if txByte == nil {
 			sendGetData(payload.AddrFrom, TX_TYPE, txID)
 		}
 	}

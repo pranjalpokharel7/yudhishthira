@@ -23,11 +23,11 @@ type Tx struct {
 	Amount     uint64 `json:"amount"`     // amount invloved in transaction
 
 	// remove these fields for merkel pls
-	InputCount  int `json:"inputCount"`
-	OutputCount int `json:"outputCount"`
+	InputCount  int
+	OutputCount int
 }
 
-func (tx *Tx) SerializeTxToGOB() ([]byte, error) {
+func (tx Tx) SerializeTxToGOB() ([]byte, error) {
 	var encoded bytes.Buffer
 	err := gob.NewEncoder(&encoded).Encode(tx)
 	return encoded.Bytes(), err // if err in encoding then nil is returned anyway
