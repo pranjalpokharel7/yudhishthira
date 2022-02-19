@@ -9,7 +9,7 @@ import (
 	"hash"
 	"strconv"
 
-	"github.com/pranjalpokharel7/yudhishthira/transaction"
+	"github.com/pranjalpokharel7/yudhishthira/blockchain"
 )
 
 // node struct, to encompass data
@@ -18,8 +18,8 @@ type Node struct {
 	parent       *Node  // parent node
 	right        *Node
 	left         *Node
-	Tx           transaction.Tx `json:"tx"` // transaction for data storage
-	hashStrategy func(transaction.Tx) hash.Hash
+	Tx           blockchain.Tx `json:"tx"` // transaction for data storage
+	hashStrategy func(blockchain.Tx) hash.Hash
 	tree         *MerkelTree
 }
 
@@ -31,7 +31,7 @@ type MerkelTree struct {
 }
 
 // hash transaction struct
-func hashTransaction(tx transaction.Tx) []byte {
+func hashTransaction(tx blockchain.Tx) []byte {
 	data := []byte(strconv.Itoa(tx.InputCount))
 	hash := sha256.Sum256(data)
 	return hash[:]
@@ -42,7 +42,7 @@ func hashDataSha256(data []byte) string {
 	return string(hash[:])
 }
 
-func CreateMerkelTree(transactions []transaction.Tx, tree *MerkelTree) (*MerkelTree, error) {
+func CreateMerkelTree(transactions []blockchain.Tx, tree *MerkelTree) (*MerkelTree, error) {
 	if len(transactions) == 0 {
 		return nil, errors.New("Can't create a new tree from empty list")
 	}
@@ -72,7 +72,7 @@ func CreateMerkelTree(transactions []transaction.Tx, tree *MerkelTree) (*MerkelT
 	return tree, err
 }
 
-func AddDataMerkelTree(tree *MerkelTree, transactions ...transaction.Tx) (*MerkelTree, error) {
+func AddDataMerkelTree(tree *MerkelTree, transactions ...blockchain.Tx) (*MerkelTree, error) {
 	for _, tx := range transactions {
 		node := &Node{
 			Tx:        tx,
@@ -147,7 +147,7 @@ func (tree *MerkelTree) GetLengthLeaves() int {
 	return len(tree.LeafNodes)
 }
 
-func (tree *MerkelTree) VerifyTransaction(tx transaction.Tx) bool {
+func (tree *MerkelTree) VerifyTransaction(tx blockchain.Tx) bool {
 	for _, node := range tree.LeafNodes {
 		if bytes.Compare(hashTransaction(tx), node.HashValue) == 0 {
 			parentNode := node.parent
@@ -232,8 +232,8 @@ func HandleNodeValue(jsonData map[string]interface{}) *Node {
 	return node
 }
 
-func HandleTransaction(jsonData map[string]interface{}) *transaction.Tx {
-	tx := &transaction.Tx{}
+func HandleTransaction(jsonData map[string]interface{}) *blockchain.Tx {
+	tx := &blockchain.Tx{}
 
 	for k, v := range jsonData {
 		if k == "inputCount" {

@@ -32,13 +32,13 @@ func (blk *Block) String() string {
 	return strings.Join(lines, "\n")
 }
 
-func (blk *Block) SerializeToGOB() ([]byte, error) {
+func (blk *Block) SerializeBlockToGOB() ([]byte, error) {
 	var encoded bytes.Buffer
 	err := gob.NewEncoder(&encoded).Encode(blk)
 	return encoded.Bytes(), err
 }
 
-func DeserializeFromGOB(serializedBlock []byte) (*Block, error) {
+func DeserializeBlockFromGOB(serializedBlock []byte) (*Block, error) {
 	var blk Block
 	err := gob.NewDecoder(bytes.NewReader(serializedBlock)).Decode(&blk)
 	return &blk, err
