@@ -68,24 +68,15 @@ func InitBlockChain() *BlockChain {
 
 func (blockchain *BlockChain) AddBlock(latestBlock *Block) {
 	var lastHash []byte
-	var lastBlock *Block
 
 	// 1) Get the hash of the last block from the chain
 	err := blockchain.Database.View(func(txn *badger.Txn) error {
-		lastHashQuery, err := txn.Get([]byte(LAST_HASH))
+		item, err := txn.Get([]byte(LAST_HASH))
 		utility.ErrThenPanic(err)
 
-		err = lastHashQuery.Value(func(val []byte) error {
+		err = item.Value(func(val []byte) error {
 			lastHash = append(lastHash, val...)
 			return nil
-		})
-
-		lastBlockQuery, err := txn.Get(lastHash)
-		utility.ErrThenPanic(err)
-
-		err = lastBlockQuery.Value(func(val []byte) error {
-			lastBlock, err = DeserializeFromGOB(val)
-			return err
 		})
 		return err
 	})
@@ -93,7 +84,6 @@ func (blockchain *BlockChain) AddBlock(latestBlock *Block) {
 
 	// 2) Create new block with last hash pointed to the last hash key value in the database
 	latestBlock.PreviousHash = lastHash
-	latestBlock.Height = lastBlock.Height + 1
 	ProofOfWork(latestBlock, DIFFICULTY) // TODO: create an abstraction methodf MineBlock(), POW can only be run after linking previous hash
 
 	err = blockchain.Database.Update(func(txn *badger.Txn) error {
@@ -136,19 +126,54 @@ func (iter *BlockChainIterator) GetBlockAndIter() *Block {
 	return block
 }
 
-func (chain *BlockChain) GetChainHeight() (uint64, error) {
-	var block *Block
+// TODO: Complete this function
+func (blockchain *BlockChain) GetHeight() int {
+	if blockchain.Database != nil {
+		return 1
+	}
 
-	// to perform read only transaction, use the View method
-	err := chain.Database.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(chain.LastHash)
-		utility.ErrThenPanic(err)
-		err = item.Value(func(val []byte) error {
-			block, err = DeserializeFromGOB(val)
-			return err
-		})
-		return err
-	})
+	return 0
+}
 
-	return block.Height, err
+func (blockchain *BlockChain) GetBlockHashes() [][]byte {
+	var hashes [][]byte
+
+	return hashes
+}
+
+func (blockchain *BlockChain) GetBlock(blockhash []byte) (Block, error) {
+	return Block{}, nil
+}
+
+// this function should only be run after proof of work
+// TODO: call proof of work from within this function
+// func (blockchain *BlockChain) AddToBlockchain(block *Block) error {
+// 	if len(blockchain.Blocks) == 0 {
+// 		return errors.New("genesis block not created")
+// 	}
+// 	previousBlock := blockchain.Blocks[len(blockchain.Blocks)-1]
+// 	block.LinkPreviousHash(&previousBlock)
+// 	blockchain.Blocks = append(blockchain.Blocks, *block)
+// 	return nil
+// }
+
+// func (blockchain *BlockChain) PrintChain() {
+// 	for _, block := range blockchain.Blocks {
+// 		blockJson, _ := block.MarshalBlockToJSON()
+// 		fmt.Println(string(blockJson))
+// 	}
+// }
+
+// func (blockchain *BlockChain) AddGenesisBlock(genesisBlock *Block) error {
+// 	if len(blockchain.Blocks) != 0 {
+// 		return errors.New("genesis block already added to the chain")
+// 	}
+// 	blockchain.Blocks = append(blockchain.Blocks, *genesisBlock)
+// 	return nil
+// }
+// i.e. find unspent transaction outputs - UTXOs
+func (blockchain *BlockChain) FindItemsOwned(pubKeyHash []byte) (map[string]Tx, error) {
+	objectsOwned := make(map[string]Tx)
+	// var objectsOwned [][]byte
+	return objectsOwned, nil
 }
