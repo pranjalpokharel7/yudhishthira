@@ -20,6 +20,7 @@ type Block struct {
 	Timestamp    uint64 // unix date time, string representation now, might convert to uint64 if time zones are not taken into consideration
 	PreviousHash []byte // hash of previous block
 	BlockHash    []byte // hash of the current block
+	Height       uint64 // current block height
 	// transactions []transaction.Tx
 }
 
@@ -27,6 +28,7 @@ func (blk *Block) String() string {
 	var lines []string
 	lines = append(lines, fmt.Sprintf("------------ Block: %x ------------", blk.BlockHash))
 	lines = append(lines, fmt.Sprintf("Nonce: %d", blk.Nonce))
+	lines = append(lines, fmt.Sprintf("Height: %d", blk.Height))
 	lines = append(lines, fmt.Sprintf("Timestamp: %d", blk.Timestamp))
 	lines = append(lines, fmt.Sprintf("Previous Hash: %x", blk.PreviousHash))
 	return strings.Join(lines, "\n")
@@ -49,11 +51,13 @@ func (blk *Block) MarshalBlockToJSON() ([]byte, error) {
 	block_json, err := json.Marshal(struct {
 		Nonce        uint64 `json:"nonce"`
 		Timestamp    uint64 `json:"timestamp"`
+		Height       uint64 `json:"height"`
 		PreviousHash string `json:"previous_hash"`
 		BlockHash    string `json:"block_hash"`
 	}{
 		Nonce:        blk.Nonce,
 		Timestamp:    blk.Timestamp,
+		Height:       blk.Height,
 		PreviousHash: hex.EncodeToString(blk.PreviousHash[:]),
 		BlockHash:    hex.EncodeToString(blk.BlockHash[:]),
 	})
@@ -81,6 +85,8 @@ func UnmarshalJSONTOBlock(jsonData []byte) (*Block, error) {
 			blk.BlockHash = []byte(v.(string))
 		} else if k == "previous_hash" {
 			blk.PreviousHash = []byte(v.(string))
+		} else if k == "height" {
+			blk.Height = uint64(v.(float64))
 		} else {
 			blk.Timestamp = uint64(v.(float64))
 		}
@@ -117,8 +123,7 @@ func (blk *Block) CreateGenesisBlock() {
 	// only allow this method to be called if blockchain is empty?
 	blk.Timestamp = uint64(time.Now().Unix())
 	blk.PreviousHash = nil
+	blk.Height = 0
 	b_hash := sha256.Sum256([]byte(GENESIS_STRING))
 	blk.BlockHash = b_hash[:]
 }
-
-func (blk *Block) AddTransactionsFromPool() {}
