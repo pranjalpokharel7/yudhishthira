@@ -96,7 +96,8 @@ type Inv struct {
 }
 
 func CommandToBytes(cmd string) []byte {
-	var bytes []byte
+	//TODO: Check this shit
+	var bytes [commandLength]byte
 
 	for i, c := range cmd {
 		bytes[i] = byte(c)
@@ -345,11 +346,14 @@ func HandleVersion(request []byte, chain *blockchain.BlockChain) {
 
 	// if the best height is less than the height on the network then request get blocks
 	if bestHeight < otherheight {
+		fmt.Println("Sending Get block request")
 		SendGetBlocks(payload.AddressFrom)
 	} else if bestHeight > otherheight {
+		fmt.Println("Sending version of the current block")
 		SendVersion(payload.AddressFrom, chain)
+	} else {
+		fmt.Printf("Same block height: %d", chain.GetHeight())
 	}
-
 	if !contains(knownNodes, payload.AddressFrom) {
 		knownNodes = append(knownNodes, payload.AddressFrom)
 	}
@@ -448,14 +452,14 @@ func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 	// get the required command
 	// each request's first 12 characters is a command and rest is the load
 	command := BytesToCommand(req[:12])
-
+	fmt.Println(command)
 	switch command {
 	default:
 		fmt.Println("Unknown command")
 		return
 
 	case "inv":
-		fmt.Println("Sending inventory")
+		fmt.Println("Receiving inventory")
 		HandleInv(req)
 
 	case "getversion":
@@ -512,4 +516,36 @@ func GobEncode(data interface{}) []byte {
 	}
 
 	return buff.Bytes()
+}
+
+func StartServer(nodeId string, minerAddress string) {
+	nodeAddress = fmt.Sprintf("localhost:%s", nodeId)
+	knownNodes = append(knownNodes, "localhost:3000")
+	// minerAddress = minerAddress
+	ln, err := net.Listen(protocol, nodeAddress)
+	if err != nil {
+		log.Panic(err)
+	}
+	defer ln.Close()
+
+	chain := &blockchain.BlockChain{}
+	// defer chain.Database.Close()
+	// go CloseDB(chain)
+
+	if nodeAddress != knownNodes[0] {
+		SendVersion(knownNodes[0], chain)
+	} else {
+		fmt.Println("Adding block for node address")
+		b := blockchain.CreateBlock()
+		chain := blockchain.InitBlockChain()
+		chain.AddBlock(b)
+	}
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			log.Panic(err)
+		}
+		go HandleConnection(conn, chain)
+
+	}
 }

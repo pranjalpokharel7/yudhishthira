@@ -128,6 +128,10 @@ func (iter *BlockChainIterator) GetBlockAndIter() *Block {
 
 // TODO: Complete this function
 func (blockchain *BlockChain) GetHeight() int {
+	if blockchain.Database != nil {
+		return 1
+	}
+
 	return 0
 }
 
