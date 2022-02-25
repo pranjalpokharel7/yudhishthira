@@ -1,6 +1,8 @@
 package blockchain
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 
 	"github.com/dgraph-io/badger"
@@ -36,7 +38,7 @@ func InitBlockChain() *BlockChain {
 			err = ProofOfWork(&genesisBlock, DIFFICULTY)
 			utility.ErrThenPanic(err)
 
-			genesisSerialized, err := genesisBlock.SerializeBlockToGOB()
+			genesisSerialized, err := genesisBlock.SerializeToGOB()
 			utility.ErrThenPanic(err)
 
 			err = txn.Set(genesisBlock.BlockHash, genesisSerialized)
@@ -68,15 +70,24 @@ func InitBlockChain() *BlockChain {
 
 func (blockchain *BlockChain) AddBlock(latestBlock *Block) {
 	var lastHash []byte
+	var lastBlock *Block
 
 	// 1) Get the hash of the last block from the chain
 	err := blockchain.Database.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte(LAST_HASH))
+		lastHashQuery, err := txn.Get([]byte(LAST_HASH))
 		utility.ErrThenPanic(err)
 
-		err = item.Value(func(val []byte) error {
+		err = lastHashQuery.Value(func(val []byte) error {
 			lastHash = append(lastHash, val...)
 			return nil
+		})
+
+		lastBlockQuery, err := txn.Get(lastHash)
+		utility.ErrThenPanic(err)
+
+		err = lastBlockQuery.Value(func(val []byte) error {
+			lastBlock, err = DeserializeFromGOB(val)
+			return err
 		})
 		return err
 	})
@@ -84,10 +95,11 @@ func (blockchain *BlockChain) AddBlock(latestBlock *Block) {
 
 	// 2) Create new block with last hash pointed to the last hash key value in the database
 	latestBlock.PreviousHash = lastHash
+	latestBlock.Height = lastBlock.Height + 1
 	ProofOfWork(latestBlock, DIFFICULTY) // TODO: create an abstraction methodf MineBlock(), POW can only be run after linking previous hash
 
 	err = blockchain.Database.Update(func(txn *badger.Txn) error {
-		latestBlockSerialized, err := latestBlock.SerializeBlockToGOB()
+		latestBlockSerialized, err := latestBlock.SerializeToGOB()
 		utility.ErrThenPanic(err)
 
 		err = txn.Set(latestBlock.BlockHash, latestBlockSerialized)
@@ -115,7 +127,7 @@ func (iter *BlockChainIterator) GetBlockAndIter() *Block {
 		item, err := txn.Get(iter.CurrentHash)
 		utility.ErrThenPanic(err)
 		err = item.Value(func(val []byte) error {
-			block, err = DeserializeBlockFromGOB(val)
+			block, err = DeserializeFromGOB(val)
 			return err
 		})
 		return err
@@ -124,6 +136,60 @@ func (iter *BlockChainIterator) GetBlockAndIter() *Block {
 	utility.ErrThenPanic(err)
 	iter.CurrentHash = block.PreviousHash
 	return block
+}
+
+func (chain *BlockChain) GetChainHeight() (uint64, error) {
+	var block *Block
+
+	if chain.Database == nil {
+		return 0, nil
+	}
+
+	// to perform read only transaction, use the View method
+	err := chain.Database.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(chain.LastHash)
+		utility.ErrThenPanic(err)
+		err = item.Value(func(val []byte) error {
+			block, err = DeserializeFromGOB(val)
+			return err
+		})
+		return err
+	})
+
+	return block.Height, err
+}
+
+// TODO: Complete this function
+func (blockchain *BlockChain) GetHeight() uint64 {
+	height, _ := blockchain.GetChainHeight()
+
+	return height
+}
+
+func (blockchain *BlockChain) GetBlockHashes() [][]byte {
+	var hashes [][]byte
+
+	lastHash := blockchain.LastHash
+	hashes = append(hashes, lastHash)
+
+	return hashes
+}
+
+//return aa block with a particular hash
+func (blockchain *BlockChain) GetBlock(blockhash []byte) (*Block, error) {
+	itr := &BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+
+	for b := itr.GetBlockAndIter(); b != nil; b = itr.GetBlockAndIter() {
+		if bytes.Compare(blockhash, itr.CurrentHash) == 0 {
+			return b, nil
+		}
+	}
+
+	err := errors.New("Block not found")
+	return nil, err
 }
 
 // this function should only be run after proof of work
@@ -152,3 +218,9 @@ func (iter *BlockChainIterator) GetBlockAndIter() *Block {
 // 	blockchain.Blocks = append(blockchain.Blocks, *genesisBlock)
 // 	return nil
 // }
+// i.e. find unspent transaction outputs - UTXOs
+func (blockchain *BlockChain) FindItemsOwned(pubKeyHash []byte) (map[string]Tx, error) {
+	objectsOwned := make(map[string]Tx)
+	// var objectsOwned [][]byte
+	return objectsOwned, nil
+}

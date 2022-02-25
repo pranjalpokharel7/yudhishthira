@@ -4,8 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pranjalpokharel7/yudhishthira/cli"
-	"github.com/pranjalpokharel7/yudhishthira/merkel"
-	"github.com/pranjalpokharel7/yudhishthira/transaction"
+	"github.com/pranjalpokharel7/yudhishthira/p2p"
 )
 
 func main() {
@@ -20,29 +19,6 @@ func main() {
 	// fmt.Printf("Wallet Public Key: %x\n", pubKeyBytes)
 	// fmt.Printf("Wallet Address: %s\n", w.Address)
 
-	transactions := make([]transaction.Tx, 5)
-
-	for i := range transactions {
-		transactions[i] = transaction.Tx{
-			InputCount: i,
-		}
-	}
-
-	var tree *merkel.MerkelTree
-	var err error
-	tree, err = merkel.CreateMerkelTree(transactions, tree)
-	if err != nil {
-		println("Error Occured")
-	} else {
-		// tree.GetRoot().Print()
-	}
-
-	data, err := tree.MarshalToJSON()
-
-	if err != nil {
-
-	} else {
-		merkel.UnMarshalFromJSON(data)
-	}
+	p2p.StartServer("8000", "8000")
 	cli.RunCLI()
 }

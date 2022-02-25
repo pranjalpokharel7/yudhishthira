@@ -41,10 +41,10 @@ var (
 // using integer rather than strings
 // well may need to serialize this too
 const (
-	BLOCK_TYPE   = 0
-	TX_TYPE      = 1
-	VERSION_TYPE = 2
-	INV_TYPE     = 3
+	BLOCK_TYPE   = 1
+	TX_TYPE      = 2
+	VERSION_TYPE = 3
+	INV_TYPE     = 4
 )
 
 type MESSAGE_TYPE int
@@ -52,14 +52,14 @@ type MESSAGE_TYPE int
 // wrapper struct to send a block
 type Block struct {
 	AddrFrom string
-	Block    []byte
+	Block    blockchain.Block
 }
 
 // a version message that contains the version of the chain in the node
 type Version struct {
 	Timestamp   uint64
 	AddressFrom string
-	Height      int
+	Height      uint64
 }
 
 // contains all the address of the connected nodes
@@ -92,7 +92,7 @@ type Tx struct {
 type Inv struct {
 	AddrFrom string
 	Type     MESSAGE_TYPE // specify what type of inventory are we sending
-	data     [][]byte     // 2D array of byte, each byte array contains a transaction
+	Data     [][]byte     // 2D array of byte, each byte array contains a transaction
 }
 
 func CommandToBytes(cmd string) []byte {
@@ -163,14 +163,14 @@ func SendGetBlocks(addr string) {
 
 // sends all the blocks
 func SendBlock(addr string, block *blockchain.Block) {
-	data, err := block.MarshalBlockToJSON()
-	if err != nil {
-		fmt.Printf("Block serialization error: %s\n", err)
-		return
-	}
+	// data, err := block.MarshalBlockToJSON()
+	// if err != nil {
+	// 	fmt.Printf("Block serialization error: %s\n", err)
+	// 	return
+	// }
 	var blocks = Block{
 		AddrFrom: nodeAddress,
-		Block:    data,
+		Block:    *block,
 	}
 	info := append(CommandToBytes("block"), GobEncode(blocks)...)
 
@@ -231,12 +231,20 @@ func SendVersion(addr string, bChain *blockchain.BlockChain) {
 // The receiving peer can compare the inventories from an “inv” message against the inventories it has already seen, and then use a follow-up message to request unseen objects.
 // For more info: https://developer.bitcoin.org/reference/p2p_networking.html#inv
 func sendInv(addr string, kind MESSAGE_TYPE, inventories [][]byte) {
-	data := GobEncode(Inv{
+	// var buffArray []bytes.Buffer
+	// for i := 0; i < len(inventories); i++ {
+	// 	buff := bytes.NewBuffer(inventories[i])
+	// 	buffArray = append(buffArray, *buff)
+	// }
+	inv := Inv{
 		AddrFrom: nodeAddress,
 		Type:     kind,
-		data:     inventories,
-	})
-
+		Data:     inventories,
+	}
+	data := GobEncode(inv)
+	var payload Inv
+	gob.NewDecoder(bytes.NewBuffer(data)).Decode(&payload)
+	fmt.Printf("%x\n", data)
 	data = append(CommandToBytes("inv"), data...)
 	sendData(addr, data)
 }
@@ -281,7 +289,9 @@ func HandleBlock(request []byte, bChain *blockchain.BlockChain) {
 
 	// TODO: Implement Add block to blockchain method
 	// block, err := blockchain.UnmarshalJSONTOBlock(payload.Block)
-	// bChain.AddToBlockchain(block)
+	log.Printf("Chain Height Before: %d", bChain.GetHeight())
+	bChain.AddBlock(&payload.Block)
+	log.Printf("Chain Height After: %d", bChain.GetHeight())
 }
 
 // response to get block request
@@ -297,7 +307,7 @@ func HandleGetBlock(request []byte, chain *blockchain.BlockChain) {
 	}
 
 	blocks := chain.GetBlockHashes()
-
+	fmt.Println(string(buff.Bytes()))
 	sendInv(payload.AddrFrom, BLOCK_TYPE, blocks)
 }
 
@@ -319,7 +329,7 @@ func HandleGetData(request []byte, chain *blockchain.BlockChain) {
 			return
 		}
 
-		SendBlock(payload.AddrFrom, &block)
+		SendBlock(payload.AddrFrom, block)
 	}
 
 	if payload.Type == TX_TYPE {
@@ -396,11 +406,11 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 }
 
 func HandleInv(request []byte) {
-	var buff bytes.Buffer
+	buff := bytes.NewBuffer(request[commandLength:])
 	var payload Inv
 
 	buff.Write(request[commandLength:])
-	dec := gob.NewDecoder(&buff)
+	dec := gob.NewDecoder(buff)
 
 	// what this does is reads from the buff buffer and stores the decoded info in payload struct
 	// also could have done err := gob.NewDecoder(&buff).Decode(&payload)
@@ -410,27 +420,38 @@ func HandleInv(request []byte) {
 		log.Panic(err)
 	}
 
-	// TODO: Maybe create a string from the type data for just information
-	log.Printf("Received %d inventories of type %d", len(payload.data), payload.Type)
+	// for printing or debugging purposes
+	// can remove this one later
+	// if log needs to be created then may need to use this one
+	typeStringMap := map[MESSAGE_TYPE]string{
+		BLOCK_TYPE:   "BLOCK",
+		TX_TYPE:      "TX",
+		VERSION_TYPE: "VERSION",
+		INV_TYPE:     "INV",
+	}
+	fmt.Printf("%x\n", buff.Bytes())
+	log.Printf("Received %d inventories of type %s", len(payload.Data), typeStringMap[payload.Type])
 
 	if payload.Type == BLOCK_TYPE {
-		blocksInTransit := payload.data
+		blocksInTransit := payload.Data
 
-		blockHash := payload.data[0]
-		sendGetData(payload.AddrFrom, BLOCK_TYPE, blockHash)
+		if len(payload.Data) != 0 {
+			blockHash := payload.Data[0]
+			sendGetData(payload.AddrFrom, BLOCK_TYPE, blockHash)
 
-		// TODO: Check this out for more details(what this code does)
-		newInTransit := [][]byte{}
-		for _, b := range blocksInTransit {
-			if bytes.Compare(b, blockHash) != 0 {
-				newInTransit = append(newInTransit, b)
+			// TODO: Check this out for more details(what this code does)
+			newInTransit := [][]byte{}
+			for _, b := range blocksInTransit {
+				if bytes.Compare(b, blockHash) != 0 {
+					newInTransit = append(newInTransit, b)
+				}
 			}
+			blocksInTransit = newInTransit
 		}
-		blocksInTransit = newInTransit
 	}
 
 	if payload.Type == TX_TYPE {
-		txID := payload.data[0]
+		txID := payload.Data[0]
 		tx := memoryPool[hex.EncodeToString(txID)]
 		txByte, _ := tx.SerializeTxToGOB()
 		if txByte == nil {
@@ -482,7 +503,7 @@ func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 		break
 
 	case "block":
-		fmt.Println("Sending a block")
+		fmt.Println("Receiving a block")
 		HandleBlock(req, chain)
 		break
 
@@ -528,18 +549,20 @@ func StartServer(nodeId string, minerAddress string) {
 	}
 	defer ln.Close()
 
-	chain := &blockchain.BlockChain{}
 	// defer chain.Database.Close()
 	// go CloseDB(chain)
+
+	chain := &blockchain.BlockChain{}
+	chain = blockchain.InitBlockChain()
 
 	if nodeAddress != knownNodes[0] {
 		SendVersion(knownNodes[0], chain)
 	} else {
-		fmt.Println("Adding block for node address")
+		// chain = blockchain.InitBlockChain()
 		b := blockchain.CreateBlock()
-		chain := blockchain.InitBlockChain()
 		chain.AddBlock(b)
 	}
+
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
