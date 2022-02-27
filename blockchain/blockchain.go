@@ -159,16 +159,26 @@ func (chain *BlockChain) GetChainHeight() (uint64, error) {
 	return block.Height, err
 }
 
-// TODO: Complete this function
 func (blockchain *BlockChain) GetHeight() uint64 {
 	height, _ := blockchain.GetChainHeight()
 
 	return height
 }
 
-func (blockchain *BlockChain) GetBlockHashes() [][]byte {
+func (blockchain *BlockChain) GetBlockHashes(blockHash []byte) [][]byte {
 	var hashes [][]byte
 
+	//TODO: Get all the hashes from a particular hash point
+	lastHash := blockchain.LastHash
+	hashes = append(hashes, lastHash)
+
+	return hashes
+}
+
+func (blockchain *BlockChain) GetBlockHashesFromHeight(height uint64) [][]byte {
+	var hashes [][]byte
+
+	//TODO: Get all the hashes from a particular hash point
 	lastHash := blockchain.LastHash
 	hashes = append(hashes, lastHash)
 

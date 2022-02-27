@@ -34,7 +34,8 @@ var (
 	nodeAddress string   // address of this node
 
 	// here string is the transaction id and it point to the actual transaction
-	memoryPool = make(map[string]blockchain.Tx)
+	memoryPool      = make(map[string]blockchain.Tx)
+	blocksInTransit [][]byte
 )
 
 // const for types
@@ -73,13 +74,14 @@ type Address struct {
 type GetData struct {
 	AddrFrom string
 	Type     MESSAGE_TYPE
-	data     []byte // needs to be a serialized array of bytes
+	Data     []byte // needs to be a serialized array of bytes
 }
 
 // provides the block header hashes from a particular point
 type GetBlocks struct {
 	AddrFrom string
-	data     []byte
+	Data     []byte
+	Height   uint64
 }
 
 // transaction wrapper
@@ -96,7 +98,6 @@ type Inv struct {
 }
 
 func CommandToBytes(cmd string) []byte {
-	//TODO: Check this shit
 	var bytes [commandLength]byte
 
 	for i, c := range cmd {
@@ -149,9 +150,12 @@ func sendData(addr string, data []byte) {
 }
 
 // Sends get block request to another node
-func SendGetBlocks(addr string) {
+func SendGetBlocks(addr string, chain *blockchain.BlockChain) {
+	var lastHash []byte
 	var blocks = GetBlocks{
 		AddrFrom: nodeAddress,
+		Data:     lastHash,
+		Height:   chain.GetHeight(),
 	}
 	// first 12 character is command, rest is the payload
 	// check this link for more details
@@ -191,7 +195,7 @@ func sendGetData(addr string, kind MESSAGE_TYPE, id []byte) {
 	data := GobEncode(GetData{
 		AddrFrom: nodeAddress,
 		Type:     kind,
-		data:     id,
+		Data:     id,
 	})
 
 	data = append(CommandToBytes("getdata"), data...)
@@ -231,11 +235,6 @@ func SendVersion(addr string, bChain *blockchain.BlockChain) {
 // The receiving peer can compare the inventories from an “inv” message against the inventories it has already seen, and then use a follow-up message to request unseen objects.
 // For more info: https://developer.bitcoin.org/reference/p2p_networking.html#inv
 func sendInv(addr string, kind MESSAGE_TYPE, inventories [][]byte) {
-	// var buffArray []bytes.Buffer
-	// for i := 0; i < len(inventories); i++ {
-	// 	buff := bytes.NewBuffer(inventories[i])
-	// 	buffArray = append(buffArray, *buff)
-	// }
 	inv := Inv{
 		AddrFrom: nodeAddress,
 		Type:     kind,
@@ -254,7 +253,7 @@ handle functions receives all the info and you guessed it handles all the encode
 */
 
 // receives all the address from the network
-func HandleAddress(request []byte) {
+func HandleAddress(request []byte, chain *blockchain.BlockChain) {
 	//send address sends all the known nodes address, now we have to decode it
 	var buff bytes.Buffer
 	var payload Address
@@ -271,7 +270,7 @@ func HandleAddress(request []byte) {
 
 	for _, node := range knownNodes {
 		// request blocks with all the nodes that we have recieved
-		SendGetBlocks(node)
+		SendGetBlocks(node, chain)
 	}
 }
 
@@ -288,14 +287,19 @@ func HandleBlock(request []byte, bChain *blockchain.BlockChain) {
 	}
 
 	// TODO: Implement Add block to blockchain method
-	// block, err := blockchain.UnmarshalJSONTOBlock(payload.Block)
-	log.Printf("Chain Height Before: %d", bChain.GetHeight())
+	fmt.Printf("Received a block of hash: %x\n", payload.Block.BlockHash)
 	bChain.AddBlock(&payload.Block)
-	log.Printf("Chain Height After: %d", bChain.GetHeight())
+
+	if len(blocksInTransit) > 0 {
+		blockHash := blocksInTransit[0]
+		sendGetData(payload.AddrFrom, BLOCK_TYPE, blockHash)
+
+		blocksInTransit = blocksInTransit[1:]
+	}
 }
 
 // response to get block request
-func HandleGetBlock(request []byte, chain *blockchain.BlockChain) {
+func HandleGetBlocks(request []byte, chain *blockchain.BlockChain) {
 	var buff bytes.Buffer
 	var payload GetBlocks
 
@@ -306,7 +310,9 @@ func HandleGetBlock(request []byte, chain *blockchain.BlockChain) {
 		log.Panic(err)
 	}
 
-	blocks := chain.GetBlockHashes()
+	// TODO: Implement get blockhashes where it gets all the blocks
+	// either from particular version or entire chain hashes
+	blocks := chain.GetBlockHashes(payload.Data)
 	fmt.Println(string(buff.Bytes()))
 	sendInv(payload.AddrFrom, BLOCK_TYPE, blocks)
 }
@@ -323,9 +329,10 @@ func HandleGetData(request []byte, chain *blockchain.BlockChain) {
 	}
 
 	if payload.Type == BLOCK_TYPE {
-		block, err := chain.GetBlock([]byte(payload.data))
+		block, err := chain.GetBlock([]byte(payload.Data))
 
 		if err != nil {
+			log.Panic(err)
 			return
 		}
 
@@ -333,7 +340,7 @@ func HandleGetData(request []byte, chain *blockchain.BlockChain) {
 	}
 
 	if payload.Type == TX_TYPE {
-		txId := hex.EncodeToString(payload.data)
+		txId := hex.EncodeToString(payload.Data)
 		tx := memoryPool[txId]
 
 		sendTx(payload.AddrFrom, tx)
@@ -351,19 +358,24 @@ func HandleVersion(request []byte, chain *blockchain.BlockChain) {
 		log.Panic(err)
 	}
 
+	// height on the current chain
 	bestHeight := chain.GetHeight()
+
+	// height of received chain
 	otherheight := payload.Height
 
 	// if the best height is less than the height on the network then request get blocks
 	if bestHeight < otherheight {
 		fmt.Println("Sending Get block request")
-		SendGetBlocks(payload.AddressFrom)
+		SendGetBlocks(payload.AddressFrom, chain)
 	} else if bestHeight > otherheight {
 		fmt.Println("Sending version of the current block")
 		SendVersion(payload.AddressFrom, chain)
 	} else {
 		fmt.Printf("Same block height: %d", chain.GetHeight())
 	}
+
+	// if nodes are not known add them to known nodes
 	if !contains(knownNodes, payload.AddressFrom) {
 		knownNodes = append(knownNodes, payload.AddressFrom)
 	}
@@ -433,15 +445,17 @@ func HandleInv(request []byte) {
 	log.Printf("Received %d inventories of type %s", len(payload.Data), typeStringMap[payload.Type])
 
 	if payload.Type == BLOCK_TYPE {
-		blocksInTransit := payload.Data
+		blocksInTransit = payload.Data
 
 		if len(payload.Data) != 0 {
 			blockHash := payload.Data[0]
 			sendGetData(payload.AddrFrom, BLOCK_TYPE, blockHash)
 
-			// TODO: Check this out for more details(what this code does)
+			// this section is equivalent to blocksInTransit.remove(blockHash)
+			// insert all the items in the chain in blocksInTransit and the operate it later so that it gets appended to the chain
 			newInTransit := [][]byte{}
 			for _, b := range blocksInTransit {
+				// add all the nodex except blockHash to blocksInTransit
 				if bytes.Compare(b, blockHash) != 0 {
 					newInTransit = append(newInTransit, b)
 				}
@@ -499,7 +513,7 @@ func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 
 	case "address":
 		fmt.Println("Sending known addresses")
-		HandleAddress(req)
+		HandleAddress(req, chain)
 		break
 
 	case "block":
@@ -508,7 +522,7 @@ func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 		break
 
 	case "getblocks":
-		HandleGetBlock(req, chain)
+		HandleGetBlocks(req, chain)
 		break
 
 	}
@@ -560,9 +574,14 @@ func StartServer(nodeId string, minerAddress string) {
 	} else {
 		// chain = blockchain.InitBlockChain()
 		b := blockchain.CreateBlock()
-		chain.AddBlock(b)
+		if chain.GetHeight() == 0 {
+			chain.AddBlock(b)
+			chain.AddBlock(b)
+			chain.AddBlock(b)
+			chain.AddBlock(b)
+			chain.AddBlock(b)
+		}
 	}
-
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
