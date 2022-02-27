@@ -168,7 +168,7 @@ func (blockchain *BlockChain) GetHeight() uint64 {
 func (blockchain *BlockChain) GetBlockHashes(blockHash []byte) [][]byte {
 	var hashes [][]byte
 
-	//TODO: Get all the hashes from a particular hash point
+	//TODO(pranjanpokharel7): Get all the hashes from a particular hash of a block
 	lastHash := blockchain.LastHash
 	hashes = append(hashes, lastHash)
 
@@ -178,7 +178,7 @@ func (blockchain *BlockChain) GetBlockHashes(blockHash []byte) [][]byte {
 func (blockchain *BlockChain) GetBlockHashesFromHeight(height uint64) [][]byte {
 	var hashes [][]byte
 
-	//TODO: Get all the hashes from a particular hash point
+	//TODO(pranjanpokharel7): Get all the hashes from a particular height
 	lastHash := blockchain.LastHash
 	hashes = append(hashes, lastHash)
 
