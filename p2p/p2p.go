@@ -30,8 +30,8 @@ const (
 )
 
 var (
-	knownNodes  []string // list of all the knownNodes
-	nodeAddress string   // address of this node
+	knownNodes  = []string{"localhost:3000"} // list of all the knownNodes
+	nodeAddress string                       // address of this node
 
 	// here string is the transaction id and it point to the actual transaction
 	memoryPool      = make(map[string]blockchain.Tx)
@@ -555,7 +555,6 @@ func GobEncode(data interface{}) []byte {
 
 func StartServer(nodeId string, minerAddress string) {
 	nodeAddress = fmt.Sprintf("localhost:%s", nodeId)
-	knownNodes = append(knownNodes, "localhost:3000")
 	// minerAddress = minerAddress
 	ln, err := net.Listen(protocol, nodeAddress)
 	if err != nil {
