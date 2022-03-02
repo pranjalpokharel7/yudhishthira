@@ -167,22 +167,48 @@ func (blockchain *BlockChain) GetHeight() uint64 {
 
 func (blockchain *BlockChain) GetBlockHashes(blockHash []byte) [][]byte {
 	var hashes [][]byte
+	var hashesInOrder [][]byte
 
-	//TODO(pranjanpokharel7): Get all the hashes from a particular hash of a block
-	lastHash := blockchain.LastHash
-	hashes = append(hashes, lastHash)
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
 
-	return hashes
+	// we only need heights after a certain block and not the block with the matching itself
+	block := iter.GetBlockAndIter()
+	for !bytes.Equal(block.BlockHash, blockHash) {
+		hashes = append(hashes, block.BlockHash)
+		block = iter.GetBlockAndIter()
+	}
+
+	for i := len(hashes) - 1; i >= 0; i-- {
+		hashesInOrder = append(hashesInOrder, hashes[i])
+	}
+
+	return hashesInOrder
 }
 
 func (blockchain *BlockChain) GetBlockHashesFromHeight(height uint64) [][]byte {
 	var hashes [][]byte
+	var hashesInOrder [][]byte
 
-	//TODO(pranjanpokharel7): Get all the hashes from a particular height
-	lastHash := blockchain.LastHash
-	hashes = append(hashes, lastHash)
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
 
-	return hashes
+	// we only need heights after a certain block and not the block with the matching itself
+	block := iter.GetBlockAndIter()
+	for block.Height != height {
+		hashes = append(hashes, block.BlockHash) // TODO: need to add in reverse order? or reverse at last?
+		block = iter.GetBlockAndIter()
+	}
+
+	for i := len(hashes) - 1; i >= 0; i-- {
+		hashesInOrder = append(hashesInOrder, hashes[i])
+	}
+
+	return hashesInOrder
 }
 
 //return aa block with a particular hash
@@ -193,7 +219,7 @@ func (blockchain *BlockChain) GetBlock(blockhash []byte) (*Block, error) {
 	}
 
 	for b := itr.GetBlockAndIter(); b != nil; b = itr.GetBlockAndIter() {
-		if bytes.Compare(blockhash, itr.CurrentHash) == 0 {
+		if bytes.Equal(blockhash, itr.CurrentHash) {
 			return b, nil
 		}
 	}
@@ -202,32 +228,18 @@ func (blockchain *BlockChain) GetBlock(blockhash []byte) (*Block, error) {
 	return nil, err
 }
 
-// this function should only be run after proof of work
-// TODO: call proof of work from within this function
-// func (blockchain *BlockChain) AddToBlockchain(block *Block) error {
-// 	if len(blockchain.Blocks) == 0 {
-// 		return errors.New("genesis block not created")
-// 	}
-// 	previousBlock := blockchain.Blocks[len(blockchain.Blocks)-1]
-// 	block.LinkPreviousHash(&previousBlock)
-// 	blockchain.Blocks = append(blockchain.Blocks, *block)
-// 	return nil
-// }
+func (blockchain *BlockChain) PrintChain() {
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+	block := iter.GetBlockAndIter()
+	for block != nil {
+		fmt.Println(block)
+		block = iter.GetBlockAndIter()
+	}
+}
 
-// func (blockchain *BlockChain) PrintChain() {
-// 	for _, block := range blockchain.Blocks {
-// 		blockJson, _ := block.MarshalBlockToJSON()
-// 		fmt.Println(string(blockJson))
-// 	}
-// }
-
-// func (blockchain *BlockChain) AddGenesisBlock(genesisBlock *Block) error {
-// 	if len(blockchain.Blocks) != 0 {
-// 		return errors.New("genesis block already added to the chain")
-// 	}
-// 	blockchain.Blocks = append(blockchain.Blocks, *genesisBlock)
-// 	return nil
-// }
 // i.e. find unspent transaction outputs - UTXOs
 func (blockchain *BlockChain) FindItemsOwned(pubKeyHash []byte) (map[string]Tx, error) {
 	objectsOwned := make(map[string]Tx)
