@@ -152,6 +152,7 @@ func sendData(addr string, data []byte) {
 // Sends get block request to another node
 func SendGetBlocks(addr string, chain *blockchain.BlockChain) {
 	var lastHash []byte
+	lastHash = chain.LastHash
 	var blocks = GetBlocks{
 		AddrFrom: nodeAddress,
 		Data:     lastHash,
@@ -443,6 +444,10 @@ func HandleInv(request []byte) {
 	}
 	fmt.Printf("%x\n", buff.Bytes())
 	log.Printf("Received %d inventories of type %s", len(payload.Data), typeStringMap[payload.Type])
+
+	for _, inv := range payload.Data {
+		fmt.Printf("%x\n", inv)
+	}
 
 	if payload.Type == BLOCK_TYPE {
 		blocksInTransit = payload.Data

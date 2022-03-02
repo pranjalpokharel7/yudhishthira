@@ -19,6 +19,6 @@ func main() {
 	// fmt.Printf("Wallet Public Key: %x\n", pubKeyBytes)
 	// fmt.Printf("Wallet Address: %s\n", w.Address)
 
-	p2p.StartServer("8000", "8000")
+	p2p.StartServer("6969", "8000")
 	cli.RunCLI()
 }
