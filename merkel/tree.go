@@ -3,46 +3,49 @@ package merkel
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hash"
-	"strconv"
 
-	"github.com/pranjalpokharel7/yudhishthira/transaction"
+	"github.com/pranjalpokharel7/yudhishthira/blockchain"
 )
 
 // node struct, to encompass data
 type Node struct {
-	HashValue    []byte `json:"hash"` // contains the hashed byte
-	parent       *Node  // parent node
-	right        *Node
-	left         *Node
-	Tx           transaction.Tx `json:"tx"` // transaction for data storage
-	hashStrategy func(transaction.Tx) hash.Hash
-	tree         *MerkelTree
+	HashValue []byte `json:"hash"` // contains the hashed byte
+	parent    *Node  // parent node
+	right     *Node
+	left      *Node
+	Tx        blockchain.Tx `json:"tx"` // transaction for data storage
+	// hashStrategy func(blockchain.Tx) hash.Hash
+	tree *MerkelTree
 }
 
 // Merkel tree to store all the info
 type MerkelTree struct {
 	Root         *Node   `json:"rootNode"`
 	LeafNodes    []*Node `json:"leafNodes"`
-	hashStrategy func([]byte) string
+	hashStrategy func([]byte) []byte
 }
 
 // hash transaction struct
-func hashTransaction(tx transaction.Tx) []byte {
-	data := []byte(strconv.Itoa(tx.InputCount))
+func hashTransaction(tx blockchain.Tx) []byte {
+	data, err := tx.SerializeTxToGOB()
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
 	hash := sha256.Sum256(data)
 	return hash[:]
 }
 
-func hashDataSha256(data []byte) string {
+func hashDataSha256(data []byte) []byte {
 	hash := sha256.Sum256(data)
-	return string(hash[:])
+	return hash[:]
 }
 
-func CreateMerkelTree(transactions []transaction.Tx, tree *MerkelTree) (*MerkelTree, error) {
+func CreateMerkelTree(transactions []blockchain.Tx, tree *MerkelTree) (*MerkelTree, error) {
 	if len(transactions) == 0 {
 		return nil, errors.New("Can't create a new tree from empty list")
 	}
@@ -56,7 +59,7 @@ func CreateMerkelTree(transactions []transaction.Tx, tree *MerkelTree) (*MerkelT
 	// add to the roots of the merkel tree
 	for _, tx := range transactions {
 		node := Node{
-			HashValue: hashTransaction(tx),
+			HashValue: []byte(hex.EncodeToString(hashTransaction(tx))),
 			parent:    nil,
 			right:     nil,
 			left:      nil,
@@ -72,12 +75,12 @@ func CreateMerkelTree(transactions []transaction.Tx, tree *MerkelTree) (*MerkelT
 	return tree, err
 }
 
-func AddDataMerkelTree(tree *MerkelTree, transactions ...transaction.Tx) (*MerkelTree, error) {
+func AddDataMerkelTree(tree *MerkelTree, transactions ...blockchain.Tx) (*MerkelTree, error) {
 	for _, tx := range transactions {
 		node := &Node{
 			Tx:        tx,
 			parent:    nil,
-			HashValue: hashTransaction(tx),
+			HashValue: []byte(hex.EncodeToString(hashTransaction(tx))),
 		}
 		tree.LeafNodes = append(tree.LeafNodes, node)
 	}
@@ -113,7 +116,7 @@ func createMerkelTreeIntermediate(nodes []*Node, tree *MerkelTree) (*Node, error
 		n := &Node{
 			left:      nodes[left],
 			right:     nodes[right],
-			HashValue: []byte(hash),
+			HashValue: hash,
 			tree:      tree,
 		}
 
@@ -147,9 +150,12 @@ func (tree *MerkelTree) GetLengthLeaves() int {
 	return len(tree.LeafNodes)
 }
 
-func (tree *MerkelTree) VerifyTransaction(tx transaction.Tx) bool {
-	for _, node := range tree.LeafNodes {
-		if bytes.Compare(hashTransaction(tx), node.HashValue) == 0 {
+func (tree *MerkelTree) VerifyTransaction(tx blockchain.Tx) bool {
+	size := len(tree.LeafNodes)
+
+	for i := 0; i < size; i++ {
+		node := tree.LeafNodes[i]
+		if bytes.Compare([]byte(hex.EncodeToString(hashTransaction(tx))), node.HashValue) == 0 {
 			parentNode := node.parent
 			for parentNode != nil {
 				rightHash := parentNode.right.HashValue
@@ -169,8 +175,32 @@ func (tree *MerkelTree) VerifyTransaction(tx transaction.Tx) bool {
 	return false
 }
 
+type TreeJson struct {
+	Root      *NodeJson   `json:"rootNode"`
+	LeafNodes []*NodeJson `json:"leafNodes"`
+}
+
+type NodeJson struct {
+	HashValue string        `json:"hash"` // contains the hashed byte
+	Tx        blockchain.Tx `json:"tx"`   // transaction for data storage
+}
+
 func (tree MerkelTree) MarshalToJSON() ([]byte, error) {
-	tree_json, err := json.Marshal(tree)
+	var treeJson TreeJson
+	treeJson.Root = &NodeJson{
+		HashValue: string(tree.Root.HashValue),
+		Tx:        tree.Root.Tx,
+	}
+
+	for _, node := range tree.LeafNodes {
+		treeJson.LeafNodes = append(treeJson.LeafNodes, &NodeJson{
+			HashValue: string(node.HashValue),
+			Tx:        node.Tx,
+		})
+	}
+
+	tree_json, err := json.MarshalIndent(treeJson, "", "\t")
+	fmt.Println(string(tree_json))
 	return tree_json, err
 }
 
@@ -232,15 +262,11 @@ func HandleNodeValue(jsonData map[string]interface{}) *Node {
 	return node
 }
 
-func HandleTransaction(jsonData map[string]interface{}) *transaction.Tx {
-	tx := &transaction.Tx{}
+func HandleTransaction(jsonData map[string]interface{}) *blockchain.Tx {
+	tx := &blockchain.Tx{}
 
 	for k, v := range jsonData {
-		if k == "inputCount" {
-			tx.InputCount = int(v.(float64))
-		} else if k == "outputCount" {
-			tx.OutputCount = int(v.(float64))
-		} else if k == "itemHash" {
+		if k == "itemHash" {
 			if v != nil {
 				tx.ItemHash = v.([]byte)
 			}
@@ -254,6 +280,18 @@ func HandleTransaction(jsonData map[string]interface{}) *transaction.Tx {
 			}
 		} else if k == "amount" {
 			tx.Amount = uint64(v.(float64))
+		} else if k == "txID" {
+			if v != nil {
+				tx.TxID = v.([]byte)
+			}
+		} else if k == "UTXOID" {
+			if v != nil {
+				tx.UTXOID = v.([]byte)
+			}
+		} else if k == "signature" {
+			if v != nil {
+				tx.Signature = v.([]byte)
+			}
 		}
 	}
 

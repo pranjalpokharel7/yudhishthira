@@ -30,7 +30,7 @@ func (blk *Block) String() string {
 	lines = append(lines, fmt.Sprintf("Nonce: %d", blk.Nonce))
 	lines = append(lines, fmt.Sprintf("Height: %d", blk.Height))
 	lines = append(lines, fmt.Sprintf("Timestamp: %d", blk.Timestamp))
-	lines = append(lines, fmt.Sprintf("Previous Hash: %x", blk.PreviousHash))
+	lines = append(lines, fmt.Sprintf("Previous Hash: %v", blk.PreviousHash))
 	return strings.Join(lines, "\n")
 }
 
