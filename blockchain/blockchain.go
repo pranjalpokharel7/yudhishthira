@@ -1,6 +1,8 @@
 package blockchain
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 
 	"github.com/dgraph-io/badger"
@@ -139,6 +141,10 @@ func (iter *BlockChainIterator) GetBlockAndIter() *Block {
 func (chain *BlockChain) GetChainHeight() (uint64, error) {
 	var block *Block
 
+	if chain.Database == nil {
+		return 0, nil
+	}
+
 	// to perform read only transaction, use the View method
 	err := chain.Database.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(chain.LastHash)
@@ -151,4 +157,92 @@ func (chain *BlockChain) GetChainHeight() (uint64, error) {
 	})
 
 	return block.Height, err
+}
+
+func (blockchain *BlockChain) GetHeight() uint64 {
+	height, _ := blockchain.GetChainHeight()
+
+	return height
+}
+
+func (blockchain *BlockChain) GetBlockHashes(blockHash []byte) [][]byte {
+	var hashes [][]byte
+	var hashesInOrder [][]byte
+
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+
+	// we only need heights after a certain block and not the block with the matching itself
+	block := iter.GetBlockAndIter()
+	for !bytes.Equal(block.BlockHash, blockHash) {
+		hashes = append(hashes, block.BlockHash)
+		block = iter.GetBlockAndIter()
+	}
+
+	for i := len(hashes) - 1; i >= 0; i-- {
+		hashesInOrder = append(hashesInOrder, hashes[i])
+	}
+
+	return hashesInOrder
+}
+
+func (blockchain *BlockChain) GetBlockHashesFromHeight(height uint64) [][]byte {
+	var hashes [][]byte
+	var hashesInOrder [][]byte
+
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+
+	// we only need heights after a certain block and not the block with the matching itself
+	block := iter.GetBlockAndIter()
+	for block.Height != height {
+		hashes = append(hashes, block.BlockHash) // TODO: need to add in reverse order? or reverse at last?
+		block = iter.GetBlockAndIter()
+	}
+
+	for i := len(hashes) - 1; i >= 0; i-- {
+		hashesInOrder = append(hashesInOrder, hashes[i])
+	}
+
+	return hashesInOrder
+}
+
+//return aa block with a particular hash
+func (blockchain *BlockChain) GetBlock(blockhash []byte) (*Block, error) {
+	itr := &BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+
+	for b := itr.GetBlockAndIter(); b != nil; b = itr.GetBlockAndIter() {
+		if bytes.Equal(blockhash, itr.CurrentHash) {
+			return b, nil
+		}
+	}
+
+	err := errors.New("Block not found")
+	return nil, err
+}
+
+func (blockchain *BlockChain) PrintChain() {
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+	block := iter.GetBlockAndIter()
+	for block != nil {
+		fmt.Println(block)
+		block = iter.GetBlockAndIter()
+	}
+}
+
+// i.e. find unspent transaction outputs - UTXOs
+func (blockchain *BlockChain) FindItemsOwned(pubKeyHash []byte) (map[string]Tx, error) {
+	objectsOwned := make(map[string]Tx)
+	// var objectsOwned [][]byte
+	return objectsOwned, nil
 }

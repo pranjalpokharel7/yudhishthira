@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -120,4 +121,23 @@ func GenerateWallet(walletFile string) error {
 	fmt.Printf("Wallet generated and saved to %s\n", walletFile)
 	fmt.Printf("Your address is %s", wlt.Address)
 	return nil
+}
+
+// checks if the address is valid and returns public key hash if true
+func PubKeyHashFromAddress(address string) ([]byte, error) {
+	checksumHash, err := base58.Decode(address)
+	if err != nil {
+		return nil, err
+	}
+	actualChecksum := checksumHash[len(checksumHash)-CHECKSUM_SIZE:]
+	pubKeyHash := checksumHash[0 : len(checksumHash)-CHECKSUM_SIZE]
+	targetChecksum := deriveChecksum(pubKeyHash)
+	if bytes.Equal(actualChecksum, targetChecksum) {
+		return pubKeyHash, nil
+	}
+	return nil, errors.New("invalid address: please check if there are mistakes in the address string")
+}
+
+func CheckSufficientFunds(pubKeyHash []byte) bool {
+	return true
 }
