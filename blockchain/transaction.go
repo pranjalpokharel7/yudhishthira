@@ -9,6 +9,8 @@ import (
 	"encoding/gob"
 	"encoding/hex"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
@@ -39,6 +41,18 @@ func DeserializeTxFromGOB(serializedTx []byte) (*Tx, error) {
 	return &tx, err
 }
 
+func (tx *Tx) String() string {
+	var lines []string
+	lines = append(lines, fmt.Sprintf("------------ Transaction: %x ------------", tx.TxID))
+	lines = append(lines, fmt.Sprintf("UTXOID: %x", tx.UTXOID))
+	lines = append(lines, fmt.Sprintf("Signature: %x", tx.Signature))
+	lines = append(lines, fmt.Sprintf("Item Hash: %x", tx.ItemHash))
+	lines = append(lines, fmt.Sprintf("Seller Hash: %x", tx.SellerHash))
+	lines = append(lines, fmt.Sprintf("Buyer Hash: %x", tx.BuyerHash))
+	lines = append(lines, fmt.Sprintf("Amount: %d", tx.Amount))
+	return strings.Join(lines, "\n")
+}
+
 func (tx *Tx) deepCopy() Tx {
 	var txCopy Tx
 	txCopy.Amount = tx.Amount
@@ -63,33 +77,32 @@ func (tx *Tx) CalculateTxHash() ([]byte, error) {
 	return hash[:], nil
 }
 
-func CoinBaseTransaction(address string, itemHash []byte, basePrice uint64) error {
+func CoinBaseTransaction(address string, itemHash []byte, basePrice uint64) (*Tx, error) {
 	// check if the address is valid
 	pubKeyHash, err := wallet.PubKeyHashFromAddress(address)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// check if the address has sufficient funds for coinbase transactions
 	hasFunds := wallet.CheckSufficientFunds(pubKeyHash) // TODO: complete this method later, for now just returns true
 	if !hasFunds {
-		return errors.New("the address owner does not have sufficient funds for introducing items into the chain")
+		return nil, errors.New("the address owner does not have sufficient funds for introducing items into the chain")
 	}
 
 	// coinbase transactions have seller hash nil, previous linked output nil
 	coinBaseTx := Tx{ItemHash: itemHash, BuyerHash: pubKeyHash, Amount: basePrice, SellerHash: nil}
 	coinBaseTx.TxID, err = coinBaseTx.CalculateTxHash()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return &coinBaseTx, nil
 }
 
 func (tx *Tx) IsCoinbase() bool {
 	return tx.SellerHash == nil && tx.UTXOID == nil
 }
 
-// TODO: might update the error handling, just panicking for now if you know what I mean ;)
 func NewTransaction(addrFrom string, addrTo string, item string, amount uint64, blockchain *BlockChain) (*Tx, error) {
 	itemHash, err := hex.DecodeString(item)
 	if err != nil {
@@ -134,13 +147,24 @@ func NewTransaction(addrFrom string, addrTo string, item string, amount uint64, 
 	return tx, nil
 }
 
-// TODO: this function needs testing
-func (tx *Tx) SignTransaction(sellerPrivKey *rsa.PrivateKey, prevUTXO []byte) error {
+func sign(privKey *rsa.PrivateKey, txHash []byte) ([]byte, error) {
+	signature, err := rsa.SignPSS(rand.Reader, privKey, crypto.SHA256, txHash, nil)
+	return signature, err
+}
+
+func (tx *Tx) SignTransaction(wlt *wallet.Wallet, prevUTXO []byte) error {
+	sellerPrivKey := wlt.PrivateKey
+
 	if tx.IsCoinbase() {
-		// might not raise error but simply print to log?
-		return errors.New("coinbase transaction does not need to be signed")
+		signature, err := sign(&sellerPrivKey, tx.TxID)
+		if err != nil {
+			return err
+		}
+		tx.Signature = signature
+		return nil
 	}
 
+	// why do I need to calculate hash again? think, if not, directly use txID
 	transactionHash, err := tx.CalculateTxHash()
 	if err != nil {
 		return err
@@ -150,7 +174,7 @@ func (tx *Tx) SignTransaction(sellerPrivKey *rsa.PrivateKey, prevUTXO []byte) er
 	if !bytes.Equal(prevUTXO, tx.UTXOID) {
 		return errors.New("previous transaction/item is not the seller's to spend")
 	}
-	signature, err := rsa.SignPSS(rand.Reader, sellerPrivKey, crypto.SHA256, transactionHash, nil)
+	signature, err := rsa.SignPSS(rand.Reader, &sellerPrivKey, crypto.SHA256, transactionHash, nil)
 	if err != nil {
 		return err
 	}

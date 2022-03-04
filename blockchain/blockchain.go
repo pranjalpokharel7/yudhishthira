@@ -86,7 +86,7 @@ func (blockchain *BlockChain) AddBlock(latestBlock *Block) {
 		utility.ErrThenPanic(err)
 
 		err = lastBlockQuery.Value(func(val []byte) error {
-			lastBlock, err = DeserializeFromGOB(val)
+			lastBlock, err = DeserializeBlockFromGOB(val)
 			return err
 		})
 		return err
@@ -150,7 +150,7 @@ func (chain *BlockChain) GetChainHeight() (uint64, error) {
 		item, err := txn.Get(chain.LastHash)
 		utility.ErrThenPanic(err)
 		err = item.Value(func(val []byte) error {
-			block, err = DeserializeFromGOB(val)
+			block, err = DeserializeBlockFromGOB(val)
 			return err
 		})
 		return err

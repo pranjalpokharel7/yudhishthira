@@ -18,7 +18,7 @@ import (
 
 // might use elliptic curve cryptography if this ends up becoming too slow
 type Wallet struct {
-	privateKey rsa.PrivateKey
+	PrivateKey rsa.PrivateKey
 	PublicKey  rsa.PublicKey
 	Address    []byte
 }
@@ -37,7 +37,7 @@ func (wallet *Wallet) GenerateKeyPair() error {
 	if err != nil {
 		return err
 	}
-	wallet.privateKey = *privateKey
+	wallet.PrivateKey = *privateKey
 	wallet.PublicKey = privateKey.PublicKey
 	return nil
 }
@@ -81,7 +81,7 @@ func deriveChecksum(pubKeyHash []byte) []byte {
 }
 
 func (wallet *Wallet) LoadWalletFromFile(walletFile string) error {
-	if _, err := os.Stat(WALLET_FILE); os.IsNotExist(err) {
+	if _, err := os.Stat(walletFile); os.IsNotExist(err) {
 		return err
 	}
 	fileContent, err := ioutil.ReadFile(walletFile)
@@ -119,7 +119,7 @@ func GenerateWallet(walletFile string) error {
 		return err
 	}
 	fmt.Printf("Wallet generated and saved to %s\n", walletFile)
-	fmt.Printf("Your address is %s", wlt.Address)
+	fmt.Printf("Your address is %s\n", wlt.Address)
 	return nil
 }
 
