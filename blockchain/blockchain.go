@@ -246,3 +246,11 @@ func (blockchain *BlockChain) FindItemsOwned(pubKeyHash []byte) (map[string]Tx, 
 	// var objectsOwned [][]byte
 	return objectsOwned, nil
 }
+
+func (blockchain *BlockChain) FindItemExists(itemHash []byte) (bool, error) {
+	// iter := BlockChainIterator{
+	// 	CurrentHash: blockchain.LastHash,
+	// 	Database: blockchain.Database,
+	// }
+	return true, nil
+}

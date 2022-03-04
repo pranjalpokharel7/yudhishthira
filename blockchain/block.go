@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/gob"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -16,11 +15,11 @@ import (
 // might need a few more fields
 // including the consensus number in the blockheader
 type Block struct {
-	Nonce        uint64 // unsigned representation for now, might allocate 64 bits later, upgrade to 64 bits if version field is removed
-	Timestamp    uint64 // unix date time, string representation now, might convert to uint64 if time zones are not taken into consideration
-	PreviousHash []byte // hash of previous block
-	BlockHash    []byte // hash of the current block
-	Height       uint64 // current block height
+	Nonce        uint64  `json:"nonce"`         // unsigned representation for now, might allocate 64 bits later, upgrade to 64 bits if version field is removed
+	Height       uint64  `json:"height"`        // current block height
+	Timestamp    uint64  `json:"timestamp"`     // unix date time, string representation now, might convert to uint64 if time zones are not taken into consideration
+	BlockHash    HexByte `json:"block_hash"`    // hash of the current block
+	PreviousHash HexByte `json:"previous_hash"` // hash of previous block
 	// transactions []transaction.Tx
 }
 
@@ -44,29 +43,6 @@ func DeserializeBlockFromGOB(serializedBlock []byte) (*Block, error) {
 	var blk Block
 	err := gob.NewDecoder(bytes.NewReader(serializedBlock)).Decode(&blk)
 	return &blk, err
-}
-
-// cast []byte to string before marshaling
-func (blk *Block) MarshalBlockToJSON() ([]byte, error) {
-	block_json, err := json.Marshal(struct {
-		Nonce        uint64 `json:"nonce"`
-		Timestamp    uint64 `json:"timestamp"`
-		Height       uint64 `json:"height"`
-		PreviousHash string `json:"previous_hash"`
-		BlockHash    string `json:"block_hash"`
-	}{
-		Nonce:        blk.Nonce,
-		Timestamp:    blk.Timestamp,
-		Height:       blk.Height,
-		PreviousHash: hex.EncodeToString(blk.PreviousHash[:]),
-		BlockHash:    hex.EncodeToString(blk.BlockHash[:]),
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return block_json, nil
 }
 
 // this function is required because we cast []byte to string while marshaling, might remove later if affects performance

@@ -16,13 +16,13 @@ import (
 )
 
 type Tx struct {
-	TxID       []byte `json:"txID"`       // hash of this transaction
-	UTXOID     []byte `json:"UTXOID"`     // reference to the hash last transaction the item was a part of
-	Signature  []byte `json:"signature"`  // signature of seller i.e. we need proof that transaction was indeed confirmed by the seller
-	ItemHash   []byte `json:"itemHash"`   // hash of the item involved in transaction
-	SellerHash []byte `json:"sellerHash"` // pubkey hash of the seller
-	BuyerHash  []byte `json:"buyerHash"`  // pubkey hash of the seller
-	Amount     uint64 `json:"amount"`     // amount invloved in transaction
+	TxID       HexByte `json:"txID"`       // hash of this transaction
+	UTXOID     HexByte `json:"UTXOID"`     // reference to the hash last transaction the item was a part of
+	Signature  HexByte `json:"signature"`  // signature of seller i.e. we need proof that transaction was indeed confirmed by the seller
+	ItemHash   HexByte `json:"itemHash"`   // hash of the item involved in transaction
+	SellerHash HexByte `json:"sellerHash"` // pubkey hash of the seller
+	BuyerHash  HexByte `json:"buyerHash"`  // pubkey hash of the seller
+	Amount     uint64  `json:"amount"`     // amount invloved in transaction
 
 	// remove these fields for merkel pls
 	InputCount  int
@@ -77,7 +77,7 @@ func (tx *Tx) CalculateTxHash() ([]byte, error) {
 	return hash[:], nil
 }
 
-func CoinBaseTransaction(address string, itemHash []byte, basePrice uint64) (*Tx, error) {
+func CoinBaseTransaction(address string, itemHash []byte, basePrice uint64, chain *BlockChain) (*Tx, error) {
 	// check if the address is valid
 	pubKeyHash, err := wallet.PubKeyHashFromAddress(address)
 	if err != nil {
@@ -103,7 +103,7 @@ func (tx *Tx) IsCoinbase() bool {
 	return tx.SellerHash == nil && tx.UTXOID == nil
 }
 
-func NewTransaction(addrFrom string, addrTo string, item string, amount uint64, blockchain *BlockChain) (*Tx, error) {
+func NewTransaction(addrFrom string, addrTo string, item string, amount uint64, chain *BlockChain) (*Tx, error) {
 	itemHash, err := hex.DecodeString(item)
 	if err != nil {
 		return nil, err
@@ -114,7 +114,7 @@ func NewTransaction(addrFrom string, addrTo string, item string, amount uint64, 
 		return nil, err
 	}
 
-	sellerUTXOItems, err := blockchain.FindItemsOwned(sellerPubKeyHash)
+	sellerUTXOItems, err := chain.FindItemsOwned(sellerPubKeyHash)
 	if err != nil {
 		return nil, err
 	}

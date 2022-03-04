@@ -29,17 +29,6 @@ type MerkelTree struct {
 	hashStrategy func([]byte) []byte
 }
 
-// hash transaction struct
-func hashTransaction(tx blockchain.Tx) []byte {
-	data, err := tx.SerializeTxToGOB()
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	hash := sha256.Sum256(data)
-	return hash[:]
-}
-
 func hashDataSha256(data []byte) []byte {
 	hash := sha256.Sum256(data)
 	return hash[:]
@@ -47,7 +36,7 @@ func hashDataSha256(data []byte) []byte {
 
 func CreateMerkelTree(transactions []blockchain.Tx, tree *MerkelTree) (*MerkelTree, error) {
 	if len(transactions) == 0 {
-		return nil, errors.New("Can't create a new tree from empty list")
+		return nil, errors.New("can't create a new tree from empty list")
 	}
 
 	if tree == nil {
@@ -59,7 +48,7 @@ func CreateMerkelTree(transactions []blockchain.Tx, tree *MerkelTree) (*MerkelTr
 	// add to the roots of the merkel tree
 	for _, tx := range transactions {
 		node := Node{
-			HashValue: []byte(hex.EncodeToString(hashTransaction(tx))),
+			HashValue: tx.TxID,
 			parent:    nil,
 			right:     nil,
 			left:      nil,
@@ -80,7 +69,7 @@ func AddDataMerkelTree(tree *MerkelTree, transactions ...blockchain.Tx) (*Merkel
 		node := &Node{
 			Tx:        tx,
 			parent:    nil,
-			HashValue: []byte(hex.EncodeToString(hashTransaction(tx))),
+			HashValue: tx.TxID,
 		}
 		tree.LeafNodes = append(tree.LeafNodes, node)
 	}
@@ -139,7 +128,6 @@ func (node *Node) Print() {
 	fmt.Printf("%x\n", node.HashValue)
 	node.left.Print()
 	node.right.Print()
-
 }
 
 func (tree *MerkelTree) GetRoot() *Node {
@@ -155,13 +143,13 @@ func (tree *MerkelTree) VerifyTransaction(tx blockchain.Tx) bool {
 
 	for i := 0; i < size; i++ {
 		node := tree.LeafNodes[i]
-		if bytes.Compare([]byte(hex.EncodeToString(hashTransaction(tx))), node.HashValue) == 0 {
+		if bytes.Equal(tx.TxID, node.HashValue) { // TODO: might re-calculate transaction hash here?
 			parentNode := node.parent
 			for parentNode != nil {
 				rightHash := parentNode.right.HashValue
 				leftHash := parentNode.left.HashValue
 
-				if bytes.Compare(parentNode.HashValue, []byte(tree.hashStrategy(append(leftHash, rightHash...)))) != 0 {
+				if !bytes.Equal(parentNode.HashValue, []byte(tree.hashStrategy(append(leftHash, rightHash...)))) {
 					return false
 				}
 
@@ -188,19 +176,19 @@ type NodeJson struct {
 func (tree MerkelTree) MarshalToJSON() ([]byte, error) {
 	var treeJson TreeJson
 	treeJson.Root = &NodeJson{
-		HashValue: string(tree.Root.HashValue),
+		HashValue: hex.EncodeToString(tree.Root.HashValue),
 		Tx:        tree.Root.Tx,
 	}
 
 	for _, node := range tree.LeafNodes {
 		treeJson.LeafNodes = append(treeJson.LeafNodes, &NodeJson{
-			HashValue: string(node.HashValue),
+			HashValue: hex.EncodeToString(node.HashValue),
 			Tx:        node.Tx,
 		})
 	}
 
 	tree_json, err := json.MarshalIndent(treeJson, "", "\t")
-	fmt.Println(string(tree_json))
+	// fmt.Println(string(tree_json))
 	return tree_json, err
 }
 
