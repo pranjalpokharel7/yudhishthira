@@ -37,7 +37,7 @@ func DeserializeTxFromGOB(serializedTx []byte) (*Tx, error) {
 	return &tx, err
 }
 
-func (tx *Tx) String() string {
+func (tx Tx) String() string {
 	var lines []string
 	lines = append(lines, fmt.Sprintf("------------ Transaction: %x ------------", tx.TxID))
 	lines = append(lines, fmt.Sprintf("UTXOID: %x", tx.UTXOID))
@@ -75,11 +75,11 @@ func (tx *Tx) CalculateTxHash() ([]byte, error) {
 
 func CoinBaseTransaction(address string, itemHash []byte, basePrice uint64, chain *BlockChain) (*Tx, error) {
 	// check if the item already exists in the chain before, if yes, can't enter existing item as new item
-	itemExistsAlready, err := chain.FindItemExists(itemHash)
+	itemExists, err := chain.FindItemExists(itemHash)
 	if err != nil {
 		return nil, err
 	}
-	if itemExistsAlready {
+	if itemExists {
 		return nil, errors.New("item already exists in the chain")
 	}
 

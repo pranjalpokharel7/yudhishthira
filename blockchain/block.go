@@ -6,9 +6,12 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/pranjalpokharel7/yudhishthira/utility"
 )
 
 // the body of the block only contains the transactions
@@ -86,8 +89,11 @@ func CalculateHash(blk *Block, nonce uint64) []byte {
 	blockData := nonce ^ blk.Timestamp                   // XOR timestamp and nonce
 	binary.LittleEndian.PutUint64(blockBytes, blockData) // write XORed  uint64 data to buffer
 	buf.Write(blockBytes)
-	buf.Write(blk.PreviousHash[:])               // write blockhash to buffer
-	buf.Write(blk.TxMerkleTree.Root.HashValue)   // TODO: debug if this works
+	buf.Write(blk.PreviousHash[:]) // write blockhash to buffer
+	if blk.TxMerkleTree == nil {
+		utility.ErrThenPanic(errors.New("no transactions added to the block yet"))
+	}
+	buf.Write(blk.TxMerkleTree.Root.HashValue)   // write merkel root hash to buffer
 	calculatedHash := sha256.Sum256(buf.Bytes()) // calculate hash
 
 	return calculatedHash[:]

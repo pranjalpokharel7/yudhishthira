@@ -116,7 +116,7 @@ func (blockchain *BlockChain) AddBlock(latestBlock *Block) {
 // return the last block from the chain and iterator backwards in the chain
 func (iter *BlockChainIterator) GetBlockAndIter() *Block {
 	if iter.CurrentHash == nil {
-		fmt.Println("Blockchain iteration complete!")
+		// fmt.Println("Blockchain iteration complete!")
 		return nil
 	}
 	var block *Block
@@ -247,9 +247,20 @@ func (blockchain *BlockChain) FindItemsOwned(pubKeyHash []byte) (map[string]Tx, 
 }
 
 func (blockchain *BlockChain) FindItemExists(itemHash []byte) (bool, error) {
-	// iter := BlockChainIterator{
-	// 	CurrentHash: blockchain.LastHash,
-	// 	Database: blockchain.Database,
-	// }
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+
+	// if nil is returned then that means we reached the genesis block on iteration
+	for block := iter.GetBlockAndIter(); block != nil; block = iter.GetBlockAndIter() {
+		for _, txNode := range block.TxMerkleTree.LeafNodes {
+			if bytes.Equal(txNode.Transaction.ItemHash, itemHash) {
+				// fmt.Println("Item exists in the chain beforehand")
+				return true, nil
+			}
+		}
+	}
+
 	return false, nil
 }
