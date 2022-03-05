@@ -32,11 +32,10 @@ func InitBlockChain() *BlockChain {
 		if _, err := txn.Get([]byte(LAST_HASH)); err == badger.ErrKeyNotFound {
 			// no blocks in the blockchain yet, need to add genesis block
 			// TODO: separate this into a different function, since we need to run this just once in production
-			var genesisBlock Block
 
-			genesisBlock.CreateGenesisBlock()
-			err = ProofOfWork(&genesisBlock, DIFFICULTY)
-			utility.ErrThenPanic(err)
+			genesisBlock := CreateGenesisBlock()
+			// err = ProofOfWork(genesisBlock, DIFFICULTY)
+			// utility.ErrThenPanic(err)
 
 			genesisSerialized, err := genesisBlock.SerializeBlockToGOB()
 			utility.ErrThenPanic(err)
@@ -252,5 +251,5 @@ func (blockchain *BlockChain) FindItemExists(itemHash []byte) (bool, error) {
 	// 	CurrentHash: blockchain.LastHash,
 	// 	Database: blockchain.Database,
 	// }
-	return true, nil
+	return false, nil
 }

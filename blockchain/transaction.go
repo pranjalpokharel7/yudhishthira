@@ -23,10 +23,6 @@ type Tx struct {
 	SellerHash HexByte `json:"sellerHash"` // pubkey hash of the seller
 	BuyerHash  HexByte `json:"buyerHash"`  // pubkey hash of the seller
 	Amount     uint64  `json:"amount"`     // amount invloved in transaction
-
-	// remove these fields for merkel pls
-	InputCount  int
-	OutputCount int
 }
 
 func (tx Tx) SerializeTxToGOB() ([]byte, error) {
@@ -78,6 +74,15 @@ func (tx *Tx) CalculateTxHash() ([]byte, error) {
 }
 
 func CoinBaseTransaction(address string, itemHash []byte, basePrice uint64, chain *BlockChain) (*Tx, error) {
+	// check if the item already exists in the chain before, if yes, can't enter existing item as new item
+	itemExistsAlready, err := chain.FindItemExists(itemHash)
+	if err != nil {
+		return nil, err
+	}
+	if itemExistsAlready {
+		return nil, errors.New("item already exists in the chain")
+	}
+
 	// check if the address is valid
 	pubKeyHash, err := wallet.PubKeyHashFromAddress(address)
 	if err != nil {

@@ -1,4 +1,4 @@
-package merkel
+package blockchain
 
 import (
 	"bytes"
@@ -7,23 +7,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
-	"github.com/pranjalpokharel7/yudhishthira/blockchain"
 )
 
 // node struct, to encompass data
 type Node struct {
-	HashValue []byte `json:"hash"` // contains the hashed byte
-	parent    *Node  // parent node
-	right     *Node
-	left      *Node
-	Tx        blockchain.Tx `json:"tx"` // transaction for data storage
-	// hashStrategy func(blockchain.Tx) hash.Hash
-	tree *MerkelTree
+	HashValue   HexByte `json:"hash"` // contains the hashed byte
+	parent      *Node   // parent node
+	right       *Node
+	left        *Node
+	Transaction Tx `json:"tx"` // transaction for data storage
+	tree        *MerkleTree
 }
 
-// Merkel tree to store all the info
-type MerkelTree struct {
+// Merkle tree to store all the info
+type MerkleTree struct {
 	Root         *Node   `json:"rootNode"`
 	LeafNodes    []*Node `json:"leafNodes"`
 	hashStrategy func([]byte) []byte
@@ -34,54 +31,54 @@ func hashDataSha256(data []byte) []byte {
 	return hash[:]
 }
 
-func CreateMerkelTree(transactions []blockchain.Tx, tree *MerkelTree) (*MerkelTree, error) {
+func CreateMerkleTree(transactions []Tx, tree *MerkleTree) (*MerkleTree, error) {
 	if len(transactions) == 0 {
 		return nil, errors.New("can't create a new tree from empty list")
 	}
 
 	if tree == nil {
-		tree = &MerkelTree{
+		tree = &MerkleTree{
 			hashStrategy: hashDataSha256,
 		}
 	}
 
-	// add to the roots of the merkel tree
+	// add to the roots of the merkle tree
 	for _, tx := range transactions {
 		node := Node{
-			HashValue: tx.TxID,
-			parent:    nil,
-			right:     nil,
-			left:      nil,
-			Tx:        tx,
+			HashValue:   tx.TxID,
+			parent:      nil,
+			right:       nil,
+			left:        nil,
+			Transaction: tx,
 		}
 
 		tree.LeafNodes = append(tree.LeafNodes, &node)
 	}
 
 	var err error
-	tree.Root, err = createMerkelTreeIntermediate(tree.LeafNodes, tree)
+	tree.Root, err = createMerkleTreeIntermediate(tree.LeafNodes, tree)
 
 	return tree, err
 }
 
-func AddDataMerkelTree(tree *MerkelTree, transactions ...blockchain.Tx) (*MerkelTree, error) {
+func AddDataMerkleTree(tree *MerkleTree, transactions ...Tx) (*MerkleTree, error) {
 	for _, tx := range transactions {
 		node := &Node{
-			Tx:        tx,
-			parent:    nil,
-			HashValue: tx.TxID,
+			Transaction: tx,
+			parent:      nil,
+			HashValue:   tx.TxID,
 		}
 		tree.LeafNodes = append(tree.LeafNodes, node)
 	}
 
 	var err error
-	tree.Root, err = createMerkelTreeIntermediate(tree.LeafNodes, tree)
+	tree.Root, err = createMerkleTreeIntermediate(tree.LeafNodes, tree)
 
 	return tree, err
 }
 
-// creates a merkel tree with root specified
-func createMerkelTreeIntermediate(nodes []*Node, tree *MerkelTree) (*Node, error) {
+// creates a merkle tree with root specified
+func createMerkleTreeIntermediate(nodes []*Node, tree *MerkleTree) (*Node, error) {
 	var nodeList []*Node
 
 	if len(nodes) == 1 {
@@ -118,7 +115,7 @@ func createMerkelTreeIntermediate(nodes []*Node, tree *MerkelTree) (*Node, error
 		}
 	}
 
-	return createMerkelTreeIntermediate(nodeList, tree)
+	return createMerkleTreeIntermediate(nodeList, tree)
 }
 
 func (node *Node) Print() {
@@ -130,15 +127,15 @@ func (node *Node) Print() {
 	node.right.Print()
 }
 
-func (tree *MerkelTree) GetRoot() *Node {
+func (tree *MerkleTree) GetRoot() *Node {
 	return tree.Root
 }
 
-func (tree *MerkelTree) GetLengthLeaves() int {
+func (tree *MerkleTree) GetLengthLeaves() int {
 	return len(tree.LeafNodes)
 }
 
-func (tree *MerkelTree) VerifyTransaction(tx blockchain.Tx) bool {
+func (tree *MerkleTree) VerifyTransaction(tx Tx) bool {
 	size := len(tree.LeafNodes)
 
 	for i := 0; i < size; i++ {
@@ -169,37 +166,38 @@ type TreeJson struct {
 }
 
 type NodeJson struct {
-	HashValue string        `json:"hash"` // contains the hashed byte
-	Tx        blockchain.Tx `json:"tx"`   // transaction for data storage
+	HashValue   string `json:"hash"` // contains the hashed byte
+	Transaction Tx     `json:"tx"`   // transaction for data storage
 }
 
-func (tree MerkelTree) MarshalToJSON() ([]byte, error) {
+func (tree MerkleTree) MarshalToJSON() ([]byte, error) {
 	var treeJson TreeJson
 	treeJson.Root = &NodeJson{
-		HashValue: hex.EncodeToString(tree.Root.HashValue),
-		Tx:        tree.Root.Tx,
+		HashValue:   hex.EncodeToString(tree.Root.HashValue),
+		Transaction: tree.Root.Transaction,
 	}
 
 	for _, node := range tree.LeafNodes {
 		treeJson.LeafNodes = append(treeJson.LeafNodes, &NodeJson{
-			HashValue: hex.EncodeToString(node.HashValue),
-			Tx:        node.Tx,
+			HashValue:   hex.EncodeToString(node.HashValue),
+			Transaction: node.Transaction,
 		})
 	}
 
 	tree_json, err := json.MarshalIndent(treeJson, "", "\t")
-	// fmt.Println(string(tree_json))
 	return tree_json, err
 }
 
-func UnMarshalFromJSON(jsonData []byte) (*MerkelTree, error) {
-	var unmarshalInterface map[string]interface{}
-	if err := json.Unmarshal(jsonData, &unmarshalInterface); err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
+// TODO: Unmarshaling doesn't work for root node. Empty tx value for root node. Code doesn't make sense.
+func UnmarshalMerkleFromInterface(unmarshalInterface map[string]interface{}) (*MerkleTree, error) {
 
-	var tree *MerkelTree = &MerkelTree{}
+	// var unmarshalInterface map[string]interface{}
+	// if err := json.Unmarshal(jsonData, &unmarshalInterface); err != nil {
+	// 	fmt.Println(err)
+	// 	return nil, err
+	// }
+
+	var tree *MerkleTree = &MerkleTree{}
 
 	for k, v := range unmarshalInterface {
 		if k == "rootNode" {
@@ -212,9 +210,9 @@ func UnMarshalFromJSON(jsonData []byte) (*MerkelTree, error) {
 		}
 	}
 
-	// complete the merkel tree from leaf nodes
+	// complete the merkle tree from leaf nodes
 	var err error
-	tree.Root, err = createMerkelTreeIntermediate(tree.LeafNodes, tree)
+	tree.Root, err = createMerkleTreeIntermediate(tree.LeafNodes, tree)
 
 	if err != nil {
 		fmt.Println(err)
@@ -243,15 +241,15 @@ func HandleNodeValue(jsonData map[string]interface{}) *Node {
 		if k == "hash" {
 			node.HashValue = []byte(v.(string))
 		} else if k == "tx" {
-			node.Tx = *HandleTransaction(v.(map[string]interface{}))
+			node.Transaction = *HandleTransaction(v.(map[string]interface{}))
 		}
 	}
 
 	return node
 }
 
-func HandleTransaction(jsonData map[string]interface{}) *blockchain.Tx {
-	tx := &blockchain.Tx{}
+func HandleTransaction(jsonData map[string]interface{}) *Tx {
+	tx := &Tx{}
 
 	for k, v := range jsonData {
 		if k == "itemHash" {
