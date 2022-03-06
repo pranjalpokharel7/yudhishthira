@@ -1,5 +1,10 @@
 package blockchain
 
+import (
+	"encoding/hex"
+	"encoding/json"
+)
+
 // all blockchain related constants go here
 type CHAIN_TYPE int
 
@@ -16,3 +21,10 @@ const (
 	DB_PATH              = "./db"
 	LAST_HASH            = "lh"
 )
+
+// custom byte type for marshaling
+type HexByte []byte
+
+func (hb HexByte) MarshalJSON() ([]byte, error) {
+	return json.Marshal(hex.EncodeToString(hb))
+}
