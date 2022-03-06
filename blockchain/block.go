@@ -91,7 +91,7 @@ func CalculateHash(blk *Block, nonce uint64) []byte {
 	buf.Write(blockBytes)
 	buf.Write(blk.PreviousHash[:]) // write blockhash to buffer
 	if blk.TxMerkleTree == nil {
-		utility.ErrThenPanic(errors.New("no transactions added to the block yet"))
+		utility.ErrThenLogFatal(errors.New("no transactions added to the block yet"))
 	}
 	buf.Write(blk.TxMerkleTree.Root.HashValue)   // write merkel root hash to buffer
 	calculatedHash := sha256.Sum256(buf.Bytes()) // calculate hash

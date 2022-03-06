@@ -264,3 +264,25 @@ func (blockchain *BlockChain) FindItemExists(itemHash []byte) (bool, error) {
 
 	return false, nil
 }
+
+func (blockchain *BlockChain) GetLastBlockWithItem(itemHash []byte) (*Block, int, error) {
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+	for block := iter.GetBlockAndIter(); block != nil; block = iter.GetBlockAndIter() {
+		if block.TxMerkleTree != nil {
+			for txIndex, txNode := range block.TxMerkleTree.LeafNodes {
+				if bytes.Equal(txNode.Transaction.ItemHash, itemHash) {
+					return block, txIndex, nil
+				}
+			}
+		}
+	}
+	return nil, -1, errors.New("block with item does not exist")
+}
+
+// return blocks that contains the item
+func GetAllBlocksWithItem() {
+
+}
