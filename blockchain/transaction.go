@@ -7,24 +7,22 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/gob"
-	"encoding/hex"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
 
+// TODO: timestamp of item -> when coinbase? necessary?
 type Tx struct {
-	TxID       []byte `json:"txID"`       // hash of this transaction
-	UTXOID     []byte `json:"UTXOID"`     // reference to the hash last transaction the item was a part of
-	Signature  []byte `json:"signature"`  // signature of seller i.e. we need proof that transaction was indeed confirmed by the seller
-	ItemHash   []byte `json:"itemHash"`   // hash of the item involved in transaction
-	SellerHash []byte `json:"sellerHash"` // pubkey hash of the seller
-	BuyerHash  []byte `json:"buyerHash"`  // pubkey hash of the seller
-	Amount     uint64 `json:"amount"`     // amount invloved in transaction
-
-	// remove these fields for merkel pls
-	InputCount  int
-	OutputCount int
+	TxID       HexByte `json:"txID"`       // hash of this transaction
+	UTXOID     HexByte `json:"UTXOID"`     // reference to the hash last transaction the item was a part of
+	Signature  HexByte `json:"signature"`  // signature of seller i.e. we need proof that transaction was indeed confirmed by the seller
+	ItemHash   HexByte `json:"itemHash"`   // hash of the item involved in transaction
+	SellerHash HexByte `json:"sellerHash"` // pubkey hash of the seller
+	BuyerHash  HexByte `json:"buyerHash"`  // pubkey hash of the seller
+	Amount     uint64  `json:"amount"`     // amount invloved in transaction
 }
 
 func (tx Tx) SerializeTxToGOB() ([]byte, error) {
@@ -39,6 +37,18 @@ func DeserializeTxFromGOB(serializedTx []byte) (*Tx, error) {
 	return &tx, err
 }
 
+func (tx Tx) String() string {
+	var lines []string
+	lines = append(lines, fmt.Sprintf("------------ Transaction: %x ------------", tx.TxID))
+	lines = append(lines, fmt.Sprintf("UTXOID: %x", tx.UTXOID))
+	lines = append(lines, fmt.Sprintf("Signature: %x", tx.Signature))
+	lines = append(lines, fmt.Sprintf("Item Hash: %x", tx.ItemHash))
+	lines = append(lines, fmt.Sprintf("Seller Hash: %x", tx.SellerHash))
+	lines = append(lines, fmt.Sprintf("Buyer Hash: %x", tx.BuyerHash))
+	lines = append(lines, fmt.Sprintf("Amount: %d", tx.Amount))
+	return strings.Join(lines, "\n")
+}
+
 func (tx *Tx) deepCopy() Tx {
 	var txCopy Tx
 	txCopy.Amount = tx.Amount
@@ -51,10 +61,12 @@ func (tx *Tx) deepCopy() Tx {
 	return txCopy
 }
 
+// can be used to verify hash as well, so we need to make a copy beforehand
 func (tx *Tx) CalculateTxHash() ([]byte, error) {
 	var hash [32]byte
-	txCopy := tx.deepCopy() // TODO: is this simply shallow copy?
-	txCopy.TxID = []byte{}  // TODO: might remove this here, we won't be initializing hash beforehand anyway
+	txCopy := tx.deepCopy()
+	txCopy.TxID = []byte{}
+	txCopy.Signature = []byte{} // since tx is only signed after hash is calculated, do not factor this into hash calculation
 	txCopySerialized, err := txCopy.SerializeTxToGOB()
 	if err != nil {
 		return nil, err
@@ -63,94 +75,113 @@ func (tx *Tx) CalculateTxHash() ([]byte, error) {
 	return hash[:], nil
 }
 
-func CoinBaseTransaction(address string, itemHash []byte, basePrice uint64) error {
-	// check if the address is valid
-	pubKeyHash, err := wallet.PubKeyHashFromAddress(address)
+func CoinBaseTransaction(srcWallet *wallet.Wallet, itemHash []byte, basePrice uint64, chain *BlockChain) (*Tx, error) {
+	// check if the item already exists in the chain before, if yes, can't enter existing item as new item
+	itemExists, err := chain.FindItemExists(itemHash)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	if itemExists {
+		return nil, errors.New("item already exists in the chain")
+	}
+
+	// check if the address is valid
+	pubKeyHash, err := wallet.PubKeyHashFromAddress(string(srcWallet.Address))
+	if err != nil {
+		return nil, err
 	}
 
 	// check if the address has sufficient funds for coinbase transactions
 	hasFunds := wallet.CheckSufficientFunds(pubKeyHash) // TODO: complete this method later, for now just returns true
 	if !hasFunds {
-		return errors.New("the address owner does not have sufficient funds for introducing items into the chain")
+		return nil, errors.New("the address owner does not have sufficient funds for introducing items into the chain")
 	}
 
 	// coinbase transactions have seller hash nil, previous linked output nil
-	coinBaseTx := Tx{ItemHash: itemHash, BuyerHash: pubKeyHash, Amount: basePrice, SellerHash: nil}
-	coinBaseTx.TxID, err = coinBaseTx.CalculateTxHash()
-	if err != nil {
-		return err
+	coinBaseTx := Tx{
+		ItemHash:   itemHash,
+		BuyerHash:  pubKeyHash,
+		Amount:     basePrice,
+		SellerHash: nil,
+		UTXOID:     nil,
 	}
-	return nil
+
+	// calculate transaciton hash
+	txID, err := coinBaseTx.CalculateTxHash()
+	if err != nil {
+		return nil, err
+	}
+	coinBaseTx.TxID = txID
+
+	// sign transaction
+	coinBaseTx.SignTransaction(srcWallet)
+
+	return &coinBaseTx, nil
 }
 
 func (tx *Tx) IsCoinbase() bool {
 	return tx.SellerHash == nil && tx.UTXOID == nil
 }
 
-// TODO: might update the error handling, just panicking for now if you know what I mean ;)
-func NewTransaction(addrFrom string, addrTo string, item string, amount uint64, blockchain *BlockChain) (*Tx, error) {
-	itemHash, err := hex.DecodeString(item)
+func NewTransaction(srcWallet *wallet.Wallet, destinationAddr string, itemHash []byte, basePrice uint64, chain *BlockChain) (*Tx, error) {
+	// fetch last transaction the item was a part of
+	lastBlockWithItem, txIndex, err := chain.GetLastBlockWithItem(itemHash)
 	if err != nil {
 		return nil, err
 	}
+	lastTxWithItem := lastBlockWithItem.TxMerkleTree.LeafNodes[txIndex].Transaction
 
-	sellerPubKeyHash, err := wallet.PubKeyHashFromAddress(addrFrom)
+	// check if the last transaction destination address is the current source address
+	sellerPubKeyHash, err := wallet.PubKeyHashFromAddress(string(srcWallet.Address))
 	if err != nil {
 		return nil, err
 	}
+	if !bytes.Equal(lastTxWithItem.BuyerHash, sellerPubKeyHash) {
+		return nil, errors.New("the item does not belong to the source address to sell")
+	}
 
-	sellerUTXOItems, err := blockchain.FindItemsOwned(sellerPubKeyHash)
+	// create new transaction
+	buyerPubKeyHash, err := wallet.PubKeyHashFromAddress(destinationAddr)
 	if err != nil {
 		return nil, err
 	}
-
-	tx := &Tx{ItemHash: itemHash, SellerHash: sellerPubKeyHash}
-	itemOwned := false
-
-	for itemHash, prevItemTransaction := range sellerUTXOItems {
-		if itemHash == item {
-			// this means the seller does own the item, second variable in map is the transaction corresponding to the item
-			// TODO: need to do this
-			tx.UTXOID = prevItemTransaction.TxID
-			itemOwned = true
-		}
+	newTx := Tx{
+		ItemHash:   itemHash,
+		SellerHash: sellerPubKeyHash,
+		BuyerHash:  buyerPubKeyHash,
+		Amount:     basePrice,
+		UTXOID:     lastTxWithItem.TxID,
 	}
 
-	if !itemOwned {
-		return nil, errors.New("seller does not own the item")
-	}
-
-	buyerPubKeyHash, err := wallet.PubKeyHashFromAddress(addrTo)
+	// calculate transaction hash
+	txID, err := newTx.CalculateTxHash()
 	if err != nil {
 		return nil, err
 	}
-	tx.BuyerHash = buyerPubKeyHash
-	tx.Amount = amount
+	newTx.TxID = txID
+	newTx.SignTransaction(srcWallet)
 
-	// will not sign transaction here since we do not pass private key into this function
-	// also will not hash transaction here, final hash will be calculated after signing transaction only
-	return tx, nil
+	return &newTx, nil
 }
 
-// TODO: this function needs testing
-func (tx *Tx) SignTransaction(sellerPrivKey *rsa.PrivateKey, prevUTXO []byte) error {
+func sign(privKey *rsa.PrivateKey, txHash []byte) ([]byte, error) {
+	signature, err := rsa.SignPSS(rand.Reader, privKey, crypto.SHA256, txHash, nil)
+	return signature, err
+}
+
+func (tx *Tx) SignTransaction(wlt *wallet.Wallet) error {
+	sellerPrivKey := wlt.PrivateKey
+
 	if tx.IsCoinbase() {
-		// might not raise error but simply print to log?
-		return errors.New("coinbase transaction does not need to be signed")
+		signature, err := sign(&sellerPrivKey, tx.TxID)
+		if err != nil {
+			return err
+		}
+		tx.Signature = signature
+		return nil
 	}
 
-	transactionHash, err := tx.CalculateTxHash()
-	if err != nil {
-		return err
-	}
-	// TODO: this check might be redundant, check later
-	// assumed the tx has already been linked with prev transaction
-	if !bytes.Equal(prevUTXO, tx.UTXOID) {
-		return errors.New("previous transaction/item is not the seller's to spend")
-	}
-	signature, err := rsa.SignPSS(rand.Reader, sellerPrivKey, crypto.SHA256, transactionHash, nil)
+	signature, err := rsa.SignPSS(rand.Reader, &sellerPrivKey, crypto.SHA256, tx.TxID, nil)
 	if err != nil {
 		return err
 	}
@@ -159,7 +190,7 @@ func (tx *Tx) SignTransaction(sellerPrivKey *rsa.PrivateKey, prevUTXO []byte) er
 }
 
 // if we don't get any errors from verify signature then our signature is valid
-func (tx *Tx) VerifySignature(sellerPubKey *rsa.PublicKey) error {
+func VerifySignature(tx *Tx, sellerPubKey *rsa.PublicKey) error {
 	return rsa.VerifyPSS(sellerPubKey, crypto.SHA256, tx.TxID, tx.Signature, nil)
 }
 

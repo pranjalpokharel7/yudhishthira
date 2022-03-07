@@ -32,13 +32,12 @@ func InitBlockChain() *BlockChain {
 		if _, err := txn.Get([]byte(LAST_HASH)); err == badger.ErrKeyNotFound {
 			// no blocks in the blockchain yet, need to add genesis block
 			// TODO: separate this into a different function, since we need to run this just once in production
-			var genesisBlock Block
 
-			genesisBlock.CreateGenesisBlock()
-			err = ProofOfWork(&genesisBlock, DIFFICULTY)
-			utility.ErrThenPanic(err)
+			genesisBlock := CreateGenesisBlock()
+			// err = ProofOfWork(genesisBlock, DIFFICULTY)
+			// utility.ErrThenPanic(err)
 
-			genesisSerialized, err := genesisBlock.SerializeToGOB()
+			genesisSerialized, err := genesisBlock.SerializeBlockToGOB()
 			utility.ErrThenPanic(err)
 
 			err = txn.Set(genesisBlock.BlockHash, genesisSerialized)
@@ -86,7 +85,7 @@ func (blockchain *BlockChain) AddBlock(latestBlock *Block) {
 		utility.ErrThenPanic(err)
 
 		err = lastBlockQuery.Value(func(val []byte) error {
-			lastBlock, err = DeserializeFromGOB(val)
+			lastBlock, err = DeserializeBlockFromGOB(val)
 			return err
 		})
 		return err
@@ -99,7 +98,7 @@ func (blockchain *BlockChain) AddBlock(latestBlock *Block) {
 	ProofOfWork(latestBlock, DIFFICULTY) // TODO: create an abstraction methodf MineBlock(), POW can only be run after linking previous hash
 
 	err = blockchain.Database.Update(func(txn *badger.Txn) error {
-		latestBlockSerialized, err := latestBlock.SerializeToGOB()
+		latestBlockSerialized, err := latestBlock.SerializeBlockToGOB()
 		utility.ErrThenPanic(err)
 
 		err = txn.Set(latestBlock.BlockHash, latestBlockSerialized)
@@ -117,7 +116,7 @@ func (blockchain *BlockChain) AddBlock(latestBlock *Block) {
 // return the last block from the chain and iterator backwards in the chain
 func (iter *BlockChainIterator) GetBlockAndIter() *Block {
 	if iter.CurrentHash == nil {
-		fmt.Println("Blockchain iteration complete!")
+		// fmt.Println("Blockchain iteration complete!")
 		return nil
 	}
 	var block *Block
@@ -127,7 +126,7 @@ func (iter *BlockChainIterator) GetBlockAndIter() *Block {
 		item, err := txn.Get(iter.CurrentHash)
 		utility.ErrThenPanic(err)
 		err = item.Value(func(val []byte) error {
-			block, err = DeserializeFromGOB(val)
+			block, err = DeserializeBlockFromGOB(val)
 			return err
 		})
 		return err
@@ -150,7 +149,7 @@ func (chain *BlockChain) GetChainHeight() (uint64, error) {
 		item, err := txn.Get(chain.LastHash)
 		utility.ErrThenPanic(err)
 		err = item.Value(func(val []byte) error {
-			block, err = DeserializeFromGOB(val)
+			block, err = DeserializeBlockFromGOB(val)
 			return err
 		})
 		return err
@@ -245,4 +244,45 @@ func (blockchain *BlockChain) FindItemsOwned(pubKeyHash []byte) (map[string]Tx, 
 	objectsOwned := make(map[string]Tx)
 	// var objectsOwned [][]byte
 	return objectsOwned, nil
+}
+
+func (blockchain *BlockChain) FindItemExists(itemHash []byte) (bool, error) {
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+
+	// if nil is returned then that means we reached the genesis block on iteration
+	for block := iter.GetBlockAndIter(); block != nil; block = iter.GetBlockAndIter() {
+		for _, txNode := range block.TxMerkleTree.LeafNodes {
+			if bytes.Equal(txNode.Transaction.ItemHash, itemHash) {
+				// fmt.Println("Item exists in the chain beforehand")
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
+func (blockchain *BlockChain) GetLastBlockWithItem(itemHash []byte) (*Block, int, error) {
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+	for block := iter.GetBlockAndIter(); block != nil; block = iter.GetBlockAndIter() {
+		if block.TxMerkleTree != nil {
+			for txIndex, txNode := range block.TxMerkleTree.LeafNodes {
+				if bytes.Equal(txNode.Transaction.ItemHash, itemHash) {
+					return block, txIndex, nil
+				}
+			}
+		}
+	}
+	return nil, -1, errors.New("block with item does not exist")
+}
+
+// return blocks that contains the item
+func GetAllBlocksWithItem() {
+
 }
