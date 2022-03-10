@@ -175,7 +175,7 @@ func (blockchain *BlockChain) GetBlockHashes(blockHash []byte) [][]byte {
 
 	// we only need heights after a certain block and not the block with the matching itself
 	block := iter.GetBlockAndIter()
-	for !bytes.Equal(block.BlockHash, blockHash) {
+	for block != nil && !bytes.Equal(block.BlockHash, blockHash) {
 		hashes = append(hashes, block.BlockHash)
 		block = iter.GetBlockAndIter()
 	}
@@ -218,7 +218,7 @@ func (blockchain *BlockChain) GetBlock(blockhash []byte) (*Block, error) {
 	}
 
 	for b := itr.GetBlockAndIter(); b != nil; b = itr.GetBlockAndIter() {
-		if bytes.Equal(blockhash, itr.CurrentHash) {
+		if bytes.Equal(blockhash, b.BlockHash) {
 			return b, nil
 		}
 	}
