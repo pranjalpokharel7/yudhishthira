@@ -14,6 +14,7 @@ import (
 	//internal inports
 
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
+	"github.com/pranjalpokharel7/yudhishthira/utility"
 )
 
 // TODO: test everything
@@ -30,8 +31,9 @@ const (
 )
 
 var (
-	knownNodes  = []string{"localhost:3000"} // list of all the knownNodes
-	nodeAddress string                       // address of this node
+	// set initial knownNode
+	knownNodes  = []string{"192.168.1.68:3000"} // list of all the knownNodes
+	nodeAddress string                          // address of this node
 
 	// here string is the transaction id and it point to the actual transaction
 	memoryPool      = make(map[string]blockchain.Tx)
@@ -558,8 +560,8 @@ func GobEncode(data interface{}) []byte {
 	return buff.Bytes()
 }
 
-func StartServer(nodeId string, minerAddress string) {
-	nodeAddress = fmt.Sprintf("localhost:%s", nodeId)
+func StartServer(nodeId string) {
+	nodeAddress = fmt.Sprintf("%s:%s", utility.GetNodeAddress(), nodeId)
 	// minerAddress = minerAddress
 	ln, err := net.Listen(protocol, nodeAddress)
 	if err != nil {
