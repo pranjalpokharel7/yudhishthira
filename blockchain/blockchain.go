@@ -67,37 +67,20 @@ func InitBlockChain() *BlockChain {
 	return blockchain
 }
 
-func (blockchain *BlockChain) AddBlock(latestBlock *Block) {
-	var lastHash []byte
-	var lastBlock *Block
+func (blockchain *BlockChain) AddBlock(latestBlock *Block) error {
+	// check if block hash is correct
+	verifiedBlockHash := latestBlock.VerifyBlockHash()
+	if !verifiedBlockHash {
+		return errors.New("block hash does not match")
+	}
 
-	// 1) Get the hash of the last block from the chain
-	err := blockchain.Database.View(func(txn *badger.Txn) error {
-		lastHashQuery, err := txn.Get([]byte(LAST_HASH))
-		utility.ErrThenPanic(err)
+	// check if proof of work has been done on the block
+	verifiedProof := latestBlock.VerifyProof()
+	if !verifiedProof {
+		return errors.New("proof of work hasn't been done on the block")
+	}
 
-		err = lastHashQuery.Value(func(val []byte) error {
-			lastHash = append(lastHash, val...)
-			return nil
-		})
-
-		lastBlockQuery, err := txn.Get(lastHash)
-		utility.ErrThenPanic(err)
-
-		err = lastBlockQuery.Value(func(val []byte) error {
-			lastBlock, err = DeserializeBlockFromGOB(val)
-			return err
-		})
-		return err
-	})
-	utility.ErrThenPanic(err)
-
-	// 2) Create new block with last hash pointed to the last hash key value in the database
-	latestBlock.PreviousHash = lastHash
-	latestBlock.Height = lastBlock.Height + 1
-	ProofOfWork(latestBlock, DIFFICULTY) // TODO: create an abstraction methodf MineBlock(), POW can only be run after linking previous hash
-
-	err = blockchain.Database.Update(func(txn *badger.Txn) error {
+	err := blockchain.Database.Update(func(txn *badger.Txn) error {
 		latestBlockSerialized, err := latestBlock.SerializeBlockToGOB()
 		utility.ErrThenPanic(err)
 
@@ -110,7 +93,7 @@ func (blockchain *BlockChain) AddBlock(latestBlock *Block) {
 		return err
 	})
 
-	utility.ErrThenPanic(err)
+	return err
 }
 
 // return the last block from the chain and iterator backwards in the chain
@@ -279,7 +262,8 @@ func (blockchain *BlockChain) GetLastBlockWithItem(itemHash []byte) (*Block, int
 			}
 		}
 	}
-	return nil, -1, errors.New("block with item does not exist")
+	err := fmt.Sprintf("item with hash %x does not exist", itemHash)
+	return nil, -1, errors.New(err)
 }
 
 // return blocks that contains the item

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dgraph-io/badger"
 	"github.com/pranjalpokharel7/yudhishthira/utility"
 )
 
@@ -21,9 +22,12 @@ type Block struct {
 	Nonce        uint64      `json:"nonce"`         // unsigned representation for now, might allocate 64 bits later, upgrade to 64 bits if version field is removed
 	Height       uint64      `json:"height"`        // current block height
 	Timestamp    uint64      `json:"timestamp"`     // unix date time, string representation now, might convert to uint64 if time zones are not taken into consideration
+	Difficulty   uint64      `json:"difficulty"`    // difficulty based on tx sum
+	MiningReward uint64      `json:"mining_reward"` // reward for mining current block
 	BlockHash    HexByte     `json:"block_hash"`    // hash of the current block
 	PreviousHash HexByte     `json:"previous_hash"` // hash of previous block
-	TxMerkleTree *MerkleTree `json:"merkle_tree"`
+	Miner        HexByte     `json:"miner"`         // address of block miner
+	TxMerkleTree *MerkleTree `json:"merkle_tree"`   // merkel tree for transactions
 }
 
 func (blk *Block) String() string {
@@ -81,6 +85,23 @@ func UnmarshalBlockFromJSON(jsonData []byte) (*Block, error) {
 	return &blk, err
 }
 
+func CreateBlock() *Block {
+	var blk Block
+	blk.Timestamp = uint64(time.Now().Unix())
+	return &blk
+}
+
+func CreateGenesisBlock() *Block {
+	blk_hash := sha256.Sum256([]byte(GENESIS_STRING))
+	// leave most fields empty for now
+	blk := Block{
+		Timestamp: GENESIS_TIMESTAMP,
+		Height:    0,
+		BlockHash: blk_hash[:],
+	}
+	return &blk
+}
+
 // since this function does not modify the actual block properties, we remove the interface from it
 func CalculateHash(blk *Block, nonce uint64) []byte {
 	var buf bytes.Buffer
@@ -99,21 +120,38 @@ func CalculateHash(blk *Block, nonce uint64) []byte {
 	return calculatedHash[:]
 }
 
-func CreateBlock() *Block {
-	var blk Block
-	blk.Timestamp = uint64(time.Now().Unix())
-	return &blk
-}
+func (blk *Block) MineBlock(chain *BlockChain) error {
+	var lastHash []byte
+	var lastBlock *Block
 
-func CreateGenesisBlock() *Block {
-	var blk Block
-	blk.Timestamp = uint64(time.Now().Unix())
-	blk.PreviousHash = nil
-	blk.Height = 0
-	blk.TxMerkleTree = nil
-	b_hash := sha256.Sum256([]byte(GENESIS_STRING))
-	blk.BlockHash = b_hash[:]
-	return &blk
+	err := chain.Database.View(func(txn *badger.Txn) error {
+		lastHashQuery, err := txn.Get([]byte(LAST_HASH))
+		utility.ErrThenPanic(err)
+
+		err = lastHashQuery.Value(func(val []byte) error {
+			lastHash = append(lastHash, val...)
+			return nil
+		})
+
+		lastBlockQuery, err := txn.Get(lastHash)
+		utility.ErrThenPanic(err)
+
+		err = lastBlockQuery.Value(func(val []byte) error {
+			lastBlock, err = DeserializeBlockFromGOB(val)
+			return err
+		})
+		return err
+	})
+
+	if err != nil {
+		return err
+	}
+
+	blk.PreviousHash = lastHash
+	blk.Height = lastBlock.Height
+	ProofOfWork(blk)
+
+	return nil
 }
 
 // add transactions from pool to block as merkle tree
@@ -125,4 +163,17 @@ func (blk *Block) AddTransactionsToBlock(txPool []Tx) error {
 	}
 	blk.TxMerkleTree = tree
 	return nil
+}
+
+func (block *Block) TxSum() uint64 {
+	var txSum uint64
+	for _, txNode := range block.TxMerkleTree.LeafNodes {
+		txSum += txNode.Transaction.Amount
+	}
+	return txSum
+}
+
+func (blk *Block) VerifyBlockHash() bool {
+	calculatedHash := CalculateHash(blk, blk.Nonce)
+	return bytes.Equal(calculatedHash, blk.BlockHash)
 }
