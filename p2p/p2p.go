@@ -295,12 +295,15 @@ func HandleBlock(request []byte, bChain *blockchain.BlockChain) {
 	fmt.Printf("Received a block of hash: %x\n", payload.Block.BlockHash)
 
 	blockHashes := bChain.GetBlockHashesFromHeight(payload.Block.Height - 1)
-	lastHash := blockHashes[len(blockHashes)-1]
 
-	if !bytes.Equal(payload.Block.PreviousHash, lastHash) {
-		log.Printf("Chain of this node invalid at height: %d", payload.Block.Height-1)
-		os.Exit(69)
-		blocksInTransit = [][]byte{} // empty blocks in transit
+	if len(blockHashes) != 0 {
+		lastHash := blockHashes[len(blockHashes)-1]
+
+		if !bytes.Equal(payload.Block.PreviousHash, lastHash) {
+			log.Printf("Chain of this node invalid at height: %d", payload.Block.Height-1)
+			os.Exit(69)
+			blocksInTransit = [][]byte{} // empty blocks in transit
+		}
 	}
 
 	bChain.AddBlock(&payload.Block)
@@ -590,8 +593,6 @@ func readKnownNodesFromJSON() {
 	}
 }
 
-func knownNodesContains()
-
 func StartServer(nodeId string) {
 	nodeAddress = fmt.Sprintf("%s:%s", utility.GetNodeAddress(), nodeId)
 	// minerAddress = minerAddress
@@ -629,6 +630,7 @@ func StartServer(nodeId string) {
 			},
 		}
 		b.AddTransactionsToBlock(tx)
+		chain.AddBlock(b)
 		if chain.GetHeight() == 0 {
 			chain.AddBlock(b)
 			chain.AddBlock(b)
