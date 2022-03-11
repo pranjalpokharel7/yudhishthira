@@ -412,11 +412,10 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 		}
 	} else {
 		// TODO: Fix the number of nodes to mine
+		// TODO Mine tx
 		if len(memoryPool) >= 2 {
-			//TODO: Mine Transaction
-			// MineTx(tx)
-		}
 
+		}
 	}
 }
 
@@ -580,6 +579,15 @@ func StartServer(nodeId string) {
 	} else {
 		// chain = blockchain.InitBlockChain()
 		b := blockchain.CreateBlock()
+		tx := []blockchain.Tx{
+			{
+				Amount: 69,
+			},
+			{
+				Amount: 6969,
+			},
+		}
+		b.AddTransactionsToBlock(tx)
 		if chain.GetHeight() == 0 {
 			chain.AddBlock(b)
 			chain.AddBlock(b)
@@ -588,6 +596,7 @@ func StartServer(nodeId string) {
 			chain.AddBlock(b)
 		}
 	}
+
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
