@@ -113,6 +113,7 @@ func CalculateHash(blk *Block, nonce uint64) []byte {
 	buf.Write(blk.PreviousHash[:]) // write blockhash to buffer
 
 	// move this decision block outside please, proof of work will be delayed
+	// TODO: merkel hash is not included in POW now, please consider
 	// if blk.TxMerkleTree != nil {
 	// 	buf.Write(blk.TxMerkleTree.Root.HashValue) // write merkel root hash to buffer
 	// }
