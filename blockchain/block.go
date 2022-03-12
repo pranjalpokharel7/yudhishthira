@@ -6,12 +6,12 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/pranjalpokharel7/yudhishthira/utility"
+	"github.com/dgraph-io/badger"
+	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
 
 // the body of the block only contains the transactions
@@ -21,9 +21,11 @@ type Block struct {
 	Nonce        uint64      `json:"nonce"`         // unsigned representation for now, might allocate 64 bits later, upgrade to 64 bits if version field is removed
 	Height       uint64      `json:"height"`        // current block height
 	Timestamp    uint64      `json:"timestamp"`     // unix date time, string representation now, might convert to uint64 if time zones are not taken into consideration
+	Difficulty   uint64      `json:"difficulty"`    // difficulty based on tx sum
 	BlockHash    HexByte     `json:"block_hash"`    // hash of the current block
 	PreviousHash HexByte     `json:"previous_hash"` // hash of previous block
-	TxMerkleTree *MerkleTree `json:"merkle_tree"`
+	Miner        HexByte     `json:"miner"`         // address of block miner
+	TxMerkleTree *MerkleTree `json:"merkle_tree"`   // merkel tree for transactions
 }
 
 func (blk *Block) String() string {
@@ -31,11 +33,12 @@ func (blk *Block) String() string {
 	lines = append(lines, fmt.Sprintf("------------ Block: %x ------------", blk.BlockHash))
 	lines = append(lines, fmt.Sprintf("Nonce: %d", blk.Nonce))
 	lines = append(lines, fmt.Sprintf("Height: %d", blk.Height))
+	lines = append(lines, fmt.Sprintf("Miner: %x", blk.Miner))
 	lines = append(lines, fmt.Sprintf("Timestamp: %d", blk.Timestamp))
 	lines = append(lines, fmt.Sprintf("Previous Hash: %x", blk.PreviousHash))
 
 	// just print the merkle json for now, no point in worrying too much about pretty printing
-	merkleJSON, _ := json.Marshal(blk.TxMerkleTree)
+	merkleJSON, _ := json.MarshalIndent(blk.TxMerkleTree, "", "\t")
 	lines = append(lines, fmt.Sprintf("Merkle Tree: %s", merkleJSON))
 	return strings.Join(lines, "\n")
 }
@@ -81,7 +84,25 @@ func UnmarshalBlockFromJSON(jsonData []byte) (*Block, error) {
 	return &blk, err
 }
 
+func CreateBlock() *Block {
+	var blk Block
+	blk.Timestamp = uint64(time.Now().Unix())
+	return &blk
+}
+
+func CreateGenesisBlock() *Block {
+	blk_hash := sha256.Sum256([]byte(GENESIS_STRING))
+	// leave most fields empty for now
+	blk := Block{
+		Timestamp: GENESIS_TIMESTAMP,
+		Height:    0,
+		BlockHash: blk_hash[:],
+	}
+	return &blk
+}
+
 // since this function does not modify the actual block properties, we remove the interface from it
+// TODO: gob encode and hash using only required fields, as done for transaction
 func CalculateHash(blk *Block, nonce uint64) []byte {
 	var buf bytes.Buffer
 
@@ -90,30 +111,64 @@ func CalculateHash(blk *Block, nonce uint64) []byte {
 	binary.LittleEndian.PutUint64(blockBytes, blockData) // write XORed  uint64 data to buffer
 	buf.Write(blockBytes)
 	buf.Write(blk.PreviousHash[:]) // write blockhash to buffer
-	if blk.TxMerkleTree == nil {
-		utility.ErrThenLogFatal(errors.New("no transactions added to the block yet"))
-	}
-	buf.Write(blk.TxMerkleTree.Root.HashValue)   // write merkel root hash to buffer
+
+	// move this decision block outside please, proof of work will be delayed
+	// TODO: merkel hash is not included in POW now, please consider
+	// if blk.TxMerkleTree != nil {
+	// 	buf.Write(blk.TxMerkleTree.Root.HashValue) // write merkel root hash to buffer
+	// }
+
 	calculatedHash := sha256.Sum256(buf.Bytes()) // calculate hash
 
 	return calculatedHash[:]
 }
 
-func CreateBlock() *Block {
-	var blk Block
-	blk.Timestamp = uint64(time.Now().Unix())
-	return &blk
-}
+func (blk *Block) MineBlock(chain *BlockChain, wlt *wallet.Wallet) error {
+	var lastHash []byte
+	var lastBlock *Block
 
-func CreateGenesisBlock() *Block {
-	var blk Block
-	blk.Timestamp = uint64(time.Now().Unix())
-	blk.PreviousHash = nil
-	blk.Height = 0
-	blk.TxMerkleTree = nil
-	b_hash := sha256.Sum256([]byte(GENESIS_STRING))
-	blk.BlockHash = b_hash[:]
-	return &blk
+	err := chain.Database.View(func(txn *badger.Txn) error {
+		lastHashQuery, err := txn.Get([]byte(LAST_HASH))
+		if err != nil {
+			return err
+		}
+
+		err = lastHashQuery.Value(func(val []byte) error {
+			lastHash = append(lastHash, val...)
+			return nil
+		})
+
+		lastBlockQuery, err := txn.Get(lastHash)
+		if err != nil {
+			return err
+		}
+
+		err = lastBlockQuery.Value(func(val []byte) error {
+			lastBlock, err = DeserializeBlockFromGOB(val)
+			return err
+		})
+		return err
+	})
+
+	if err != nil {
+		return err
+	}
+
+	blk.PreviousHash = lastHash
+	blk.Height = lastBlock.Height + 1
+
+	// create function to calculate difficulty later based on txsum
+	blk.Difficulty = 1
+	ProofOfWork(blk)
+
+	// add miner address after proof of work is done
+	minerAddress, err := wallet.PubKeyHashFromAddress(string(wlt.Address))
+	if err != nil {
+		return err
+	}
+	blk.Miner = minerAddress
+
+	return nil
 }
 
 // add transactions from pool to block as merkle tree
@@ -125,4 +180,17 @@ func (blk *Block) AddTransactionsToBlock(txPool []Tx) error {
 	}
 	blk.TxMerkleTree = tree
 	return nil
+}
+
+func (block *Block) TxSum() uint64 {
+	var txSum uint64
+	for _, txNode := range block.TxMerkleTree.LeafNodes {
+		txSum += txNode.Transaction.Amount
+	}
+	return txSum
+}
+
+func (blk *Block) VerifyBlockHash() bool {
+	calculatedHash := CalculateHash(blk, blk.Nonce)
+	return bytes.Equal(calculatedHash, blk.BlockHash)
 }
