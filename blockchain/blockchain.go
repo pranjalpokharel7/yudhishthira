@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -372,4 +373,45 @@ func HasFundsForCoinbaseTx(walletAddress string, blockchain *BlockChain) (bool, 
 
 	hasSufficientFunds := len(minedBlocks) > MINED_TO_SPEND_RATIO*len(coinbaseTxsDone)
 	return hasSufficientFunds, nil
+}
+
+// TODO: Optimize this function
+// TODO: Maybe generalize this function to get states of all items in the chain, since we're doing that anyway
+func (blockchain *BlockChain) WalletOwnedItems(walletAddress string) ([]string, error) {
+	var ownedItems []string
+	chainItems := make(map[string]bool)
+
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+
+	pubKeyHash, err := wallet.PubKeyHashFromAddress(walletAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	for block := iter.GetBlockAndIter(); block != nil; block = iter.GetBlockAndIter() {
+		if block.TxMerkleTree != nil {
+			for _, txNode := range block.TxMerkleTree.LeafNodes {
+				itemHashString := hex.EncodeToString(txNode.Transaction.ItemHash)
+
+				if _, itemRecorded := chainItems[itemHashString]; !itemRecorded {
+					if bytes.Equal(txNode.Transaction.BuyerHash, pubKeyHash) {
+						chainItems[itemHashString] = true
+					} else if bytes.Equal(txNode.Transaction.SellerHash, pubKeyHash) {
+						chainItems[itemHashString] = false
+					}
+				}
+			}
+		}
+	}
+
+	for itemHash, ownershipState := range chainItems {
+		if ownershipState {
+			ownedItems = append(ownedItems, itemHash)
+		}
+	}
+
+	return ownedItems, nil
 }

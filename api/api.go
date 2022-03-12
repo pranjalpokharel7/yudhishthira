@@ -89,20 +89,49 @@ func GetWalletInfoResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
 	return fn
 }
 
+func GetWalletOwnedItemsResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		walletAddress := c.Param("address")
+		ownedItems, err := chain.WalletOwnedItems(walletAddress)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+		}
+		walletInfo := map[string]interface{}{
+			"owned_items": ownedItems,
+		}
+		c.JSON(200, walletInfo)
+	}
+	return fn
+}
+
 // POST Requests
 
-func PostNewTransaction(addrFrom string, addrTo string) {}
+func PostNewTransaction(addrFrom string, addrTo string) {
 
-func PostCoinbaseTransaction() {}
+}
+
+func PostCoinbaseTransaction(walletAddress string) {
+
+}
 
 func StartServer(chain *blockchain.BlockChain) {
 	router := gin.Default()
 
-	router.GET("/last-block", GetLastBlockResponse(chain))
-	router.GET("/item-history/:itemhash", GetItemTransactionHistoryResponse(chain))
-	router.GET("/last-n-blocks/:n", GetLastNBlocksResponse(chain))
-	router.GET("/last-item-block/:itemhash", GetLastBlockWithItemResponse(chain))
-	router.GET("/wallet/:address", GetWalletInfoResponse(chain))
+	// block endpoint
+	router.GET("/block/last", GetLastBlockResponse(chain))
+	router.GET("/block/last/:n", GetLastNBlocksResponse(chain))
+
+	// item endpoint
+	router.GET("/item/history/:itemhash", GetItemTransactionHistoryResponse(chain))
+	router.GET("/item/last-block/:itemhash", GetLastBlockWithItemResponse(chain))
+
+	// wallet endpoint
+	router.GET("/wallet/info/:address", GetWalletInfoResponse(chain))
+	router.GET("/wallet/items/:address", GetWalletOwnedItemsResponse(chain)) // get items currently owned by the wallet address
+
+	// misc endpoint
+	router.POST("/transaction/new")
+	router.POST("/transaction/coinbase")
 
 	router.Run(PORT)
 }
