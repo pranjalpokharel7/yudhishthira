@@ -147,6 +147,21 @@ func (blockchain *BlockChain) GetHeight() uint64 {
 	return height
 }
 
+func (blockchain *BlockChain) GetLastNBlocks(n uint64) []*Block {
+	var lastNBlocks []*Block
+
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+
+	for block, i := iter.GetBlockAndIter(), uint64(0); i < n && block != nil; block, i = iter.GetBlockAndIter(), i+1 {
+		lastNBlocks = append(lastNBlocks, block)
+	}
+
+	return lastNBlocks
+}
+
 func (blockchain *BlockChain) GetBlockHashes(blockHash []byte) [][]byte {
 	var hashes [][]byte
 	var hashesInOrder [][]byte
@@ -180,10 +195,8 @@ func (blockchain *BlockChain) GetBlockHashesFromHeight(height uint64) [][]byte {
 	}
 
 	// we only need heights after a certain block and not the block with the matching itself
-	block := iter.GetBlockAndIter()
-	for block.Height != height {
+	for block := iter.GetBlockAndIter(); block != nil && block.Height != height; block = iter.GetBlockAndIter() {
 		hashes = append(hashes, block.BlockHash) // TODO: need to add in reverse order? or reverse at last?
-		block = iter.GetBlockAndIter()
 	}
 
 	for i := len(hashes) - 1; i >= 0; i-- {
@@ -210,7 +223,7 @@ func (blockchain *BlockChain) GetBlock(blockhash []byte) (*Block, error) {
 	return nil, err
 }
 
-func (blockchain *BlockChain) GetLastBlock() *Block {
+func (blockchain *BlockChain) LastBlock() *Block {
 	itr := &BlockChainIterator{
 		CurrentHash: blockchain.LastHash,
 		Database:    blockchain.Database,
@@ -254,7 +267,7 @@ func (blockchain *BlockChain) FindItemExists(itemHash []byte) (bool, error) {
 }
 
 // gets last block which contained the item
-func (blockchain *BlockChain) GetLastBlockWithItem(itemHash []byte) (*Block, int, error) {
+func (blockchain *BlockChain) LastBlockWithItem(itemHash []byte) (*Block, int, error) {
 	iter := BlockChainIterator{
 		CurrentHash: blockchain.LastHash,
 		Database:    blockchain.Database,
@@ -273,7 +286,7 @@ func (blockchain *BlockChain) GetLastBlockWithItem(itemHash []byte) (*Block, int
 }
 
 // return all transactions that contain the item
-func (blockchain *BlockChain) GetAllTxsWithItem(itemHash []byte) []*Tx {
+func (blockchain *BlockChain) TxsIncludingItem(itemHash []byte) []*Tx {
 	var itemTxHistory []*Tx
 	iter := BlockChainIterator{
 		CurrentHash: blockchain.LastHash,
@@ -292,7 +305,7 @@ func (blockchain *BlockChain) GetAllTxsWithItem(itemHash []byte) []*Tx {
 }
 
 // get all coinbase transactions from the chain i.e. transactions in which an item was first introduced in the chain
-func (blockchain *BlockChain) GetAllCoinBaseTxs() []*Tx {
+func (blockchain *BlockChain) AllCoinBaseTxs() []*Tx {
 	var tx []*Tx
 	iter := BlockChainIterator{
 		CurrentHash: blockchain.LastHash,
@@ -311,9 +324,9 @@ func (blockchain *BlockChain) GetAllCoinBaseTxs() []*Tx {
 }
 
 // get all coinbase txs by the wallet (number of items introduced into the chain)
-func (blockchain *BlockChain) GetWalletCoinBaseTxs(walletAddress string) ([]*Tx, error) {
+func (blockchain *BlockChain) WalletCoinBaseTxs(walletAddress string) ([]*Tx, error) {
 	var userCoinBaseTxs []*Tx
-	coinBaseTxs := blockchain.GetAllCoinBaseTxs()
+	coinBaseTxs := blockchain.AllCoinBaseTxs()
 	pubKeyHash, err := wallet.PubKeyHashFromAddress(walletAddress)
 	if err != nil {
 		return nil, err
@@ -327,7 +340,7 @@ func (blockchain *BlockChain) GetWalletCoinBaseTxs(walletAddress string) ([]*Tx,
 }
 
 // get available rewards for further transactions
-func (blockchain *BlockChain) GetAllMinedBlocks(walletAddress string) ([]*Block, error) {
+func (blockchain *BlockChain) WalletMinedBlocks(walletAddress string) ([]*Block, error) {
 	var minedBlocks []*Block
 	iter := BlockChainIterator{
 		CurrentHash: blockchain.LastHash,
@@ -347,12 +360,12 @@ func (blockchain *BlockChain) GetAllMinedBlocks(walletAddress string) ([]*Block,
 
 // check if wallet has sufficient funds for coinbase transaction
 func HasFundsForCoinbaseTx(walletAddress string, blockchain *BlockChain) (bool, error) {
-	minedBlocks, err := blockchain.GetAllMinedBlocks(walletAddress)
+	minedBlocks, err := blockchain.WalletMinedBlocks(walletAddress)
 	if err != nil {
 		return false, err
 	}
 
-	coinbaseTxsDone, err := blockchain.GetWalletCoinBaseTxs(walletAddress)
+	coinbaseTxsDone, err := blockchain.WalletCoinBaseTxs(walletAddress)
 	if err != nil {
 		return false, err
 	}

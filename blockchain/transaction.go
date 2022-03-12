@@ -134,7 +134,7 @@ func (tx *Tx) IsCoinbase() bool {
 
 func NewTransaction(srcWallet *wallet.Wallet, destinationAddr string, itemHash []byte, basePrice uint64, chain *BlockChain) (*Tx, error) {
 	// fetch last transaction the item was a part of
-	lastBlockWithItem, txIndex, err := chain.GetLastBlockWithItem(itemHash)
+	lastBlockWithItem, txIndex, err := chain.LastBlockWithItem(itemHash)
 	if err != nil {
 		return nil, err
 	}
