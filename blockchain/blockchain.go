@@ -144,7 +144,6 @@ func (chain *BlockChain) GetChainHeight() (uint64, error) {
 
 func (blockchain *BlockChain) GetHeight() uint64 {
 	height, _ := blockchain.GetChainHeight()
-
 	return height
 }
 
@@ -211,6 +210,16 @@ func (blockchain *BlockChain) GetBlock(blockhash []byte) (*Block, error) {
 	return nil, err
 }
 
+func (blockchain *BlockChain) GetLastBlock() *Block {
+	itr := &BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+
+	block := itr.GetBlockAndIter()
+	return block
+}
+
 func (blockchain *BlockChain) PrintChain() {
 	iter := BlockChainIterator{
 		CurrentHash: blockchain.LastHash,
@@ -221,13 +230,6 @@ func (blockchain *BlockChain) PrintChain() {
 		fmt.Println(block)
 		block = iter.GetBlockAndIter()
 	}
-}
-
-// i.e. find unspent transaction outputs - UTXOs
-func (blockchain *BlockChain) FindItemsOwned(pubKeyHash []byte) (map[string]Tx, error) {
-	objectsOwned := make(map[string]Tx)
-	// var objectsOwned [][]byte
-	return objectsOwned, nil
 }
 
 func (blockchain *BlockChain) FindItemExists(itemHash []byte) (bool, error) {
