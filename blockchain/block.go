@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger"
+	"github.com/pranjalpokharel7/yudhishthira/utility"
 	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
 
@@ -18,14 +19,14 @@ import (
 // might need a few more fields
 // including the consensus number in the blockheader
 type Block struct {
-	Nonce        uint64      `json:"nonce"`         // unsigned representation for now, might allocate 64 bits later, upgrade to 64 bits if version field is removed
-	Height       uint64      `json:"height"`        // current block height
-	Timestamp    uint64      `json:"timestamp"`     // unix date time, string representation now, might convert to uint64 if time zones are not taken into consideration
-	Difficulty   uint64      `json:"difficulty"`    // difficulty based on tx sum
-	BlockHash    HexByte     `json:"block_hash"`    // hash of the current block
-	PreviousHash HexByte     `json:"previous_hash"` // hash of previous block
-	Miner        HexByte     `json:"miner"`         // address of block miner
-	TxMerkleTree *MerkleTree `json:"merkle_tree"`   // merkel tree for transactions
+	Nonce        uint64          `json:"nonce"`         // unsigned representation for now, might allocate 64 bits later, upgrade to 64 bits if version field is removed
+	Height       uint64          `json:"height"`        // current block height
+	Timestamp    uint64          `json:"timestamp"`     // unix date time, string representation now, might convert to uint64 if time zones are not taken into consideration
+	Difficulty   uint64          `json:"difficulty"`    // difficulty based on tx sum
+	BlockHash    utility.HexByte `json:"block_hash"`    // hash of the current block
+	PreviousHash utility.HexByte `json:"previous_hash"` // hash of previous block
+	Miner        utility.HexByte `json:"miner"`         // address of block miner
+	TxMerkleTree *MerkleTree     `json:"merkle_tree"`   // merkel tree for transactions
 }
 
 func (blk *Block) String() string {
