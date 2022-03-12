@@ -15,8 +15,12 @@ func containsLeadingZeroes(hash []byte, difficulty uint64) bool {
 }
 
 func ProofOfWork(blk *Block) error {
+	HashStrategy := CalculateHashNonEmptyBlock
+	if blk.IsEmpty() {
+		HashStrategy = CalculateHashEmptyBlock
+	}
 	for i := uint64(0); i < MAX_ITERATIONS_POW; i++ { // arbitrary 1000 to prevent potential endless loop
-		hash := CalculateHash(blk, i)
+		hash := HashStrategy(blk, i)
 		if containsLeadingZeroes(hash, blk.Difficulty) {
 			blk.BlockHash = hash
 			blk.Nonce = i

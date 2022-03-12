@@ -101,9 +101,7 @@ func CreateGenesisBlock() *Block {
 	return &blk
 }
 
-// since this function does not modify the actual block properties, we remove the interface from it
-// TODO: gob encode and hash using only required fields, as done for transaction
-func CalculateHash(blk *Block, nonce uint64) []byte {
+func CalculateHashEmptyBlock(blk *Block, nonce uint64) []byte {
 	var buf bytes.Buffer
 
 	blockBytes := make([]byte, 8)
@@ -112,11 +110,22 @@ func CalculateHash(blk *Block, nonce uint64) []byte {
 	buf.Write(blockBytes)
 	buf.Write(blk.PreviousHash[:]) // write blockhash to buffer
 
-	// move this decision block outside please, proof of work will be delayed
-	// TODO: merkel hash is not included in POW now, please consider
-	// if blk.TxMerkleTree != nil {
-	// 	buf.Write(blk.TxMerkleTree.Root.HashValue) // write merkel root hash to buffer
-	// }
+	calculatedHash := sha256.Sum256(buf.Bytes()) // calculate hash
+
+	return calculatedHash[:]
+}
+
+// since this function does not modify the actual block properties, we remove the interface from it
+// TODO: gob encode and hash using only required fields, as done for transaction
+func CalculateHashNonEmptyBlock(blk *Block, nonce uint64) []byte {
+	var buf bytes.Buffer
+
+	blockBytes := make([]byte, 8)
+	blockData := nonce ^ blk.Timestamp                   // XOR timestamp and nonce
+	binary.LittleEndian.PutUint64(blockBytes, blockData) // write XORed  uint64 data to buffer
+	buf.Write(blockBytes)
+	buf.Write(blk.PreviousHash[:])             // write blockhash to buffer
+	buf.Write(blk.TxMerkleTree.Root.HashValue) // write merkel root hash to buffer
 
 	calculatedHash := sha256.Sum256(buf.Bytes()) // calculate hash
 
@@ -157,8 +166,8 @@ func (blk *Block) MineBlock(chain *BlockChain, wlt *wallet.Wallet) error {
 	blk.PreviousHash = lastHash
 	blk.Height = lastBlock.Height + 1
 
-	// create function to calculate difficulty later based on txsum
-	blk.Difficulty = 1
+	// create function to calculate difficulty later based on txsum?
+	blk.Difficulty = blk.Height%2016 + 1 // block difficulty changes every 2016 blocks, just like bitcoin
 	ProofOfWork(blk)
 
 	// add miner address after proof of work is done
@@ -191,6 +200,15 @@ func (block *Block) TxSum() uint64 {
 }
 
 func (blk *Block) VerifyBlockHash() bool {
-	calculatedHash := CalculateHash(blk, blk.Nonce)
+	var calculatedHash []byte
+	if blk.IsEmpty() {
+		calculatedHash = CalculateHashEmptyBlock(blk, blk.Nonce)
+	} else {
+		calculatedHash = CalculateHashNonEmptyBlock(blk, blk.Nonce)
+	}
 	return bytes.Equal(calculatedHash, blk.BlockHash)
+}
+
+func (blk *Block) IsEmpty() bool {
+	return blk.TxMerkleTree == nil
 }

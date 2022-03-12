@@ -7,7 +7,7 @@ import (
 
 // some constants
 const (
-	MAX_ITERATIONS_POW   = 100000 // will migrate to unlimited iterations once optimized to use goroutines for mining
+	MAX_ITERATIONS_POW   = 1000000 // will migrate to unlimited iterations once optimized to use goroutines for mining
 	DB_PATH              = "./db"
 	LAST_HASH            = "lh"
 	GENESIS_STRING       = "BBC News (Thursday, March 10, 2022 1:33:39 PM) - Ukraine war: No progress on ceasefire after Kyiv-Moscow talks"
