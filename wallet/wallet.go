@@ -137,7 +137,3 @@ func PubKeyHashFromAddress(address string) ([]byte, error) {
 	}
 	return nil, errors.New("invalid address: please check if there are mistakes in the address string")
 }
-
-func CheckSufficientFunds(pubKeyHash []byte) bool {
-	return true
-}
