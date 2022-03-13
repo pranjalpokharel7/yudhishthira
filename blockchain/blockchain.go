@@ -392,7 +392,16 @@ func HasFundsForCoinbaseTx(walletAddress string, blockchain *BlockChain) (bool, 
 		return false, err
 	}
 
-	hasSufficientFunds := len(minedBlocks) > MINED_TO_SPEND_RATIO*len(coinbaseTxsDone)
+	emptyBlocksMined := 0
+	for _, minedBlock := range minedBlocks {
+		if minedBlock.IsEmpty() {
+			emptyBlocksMined++
+		}
+	}
+	nonEmptyBlocksMined := len(minedBlocks) - emptyBlocksMined
+	mineScore := emptyBlocksMined + nonEmptyBlocksMined*MINED_TO_SPEND_RATIO
+
+	hasSufficientFunds := mineScore > 2*MINED_TO_SPEND_RATIO*len(coinbaseTxsDone)
 	return hasSufficientFunds, nil
 }
 
