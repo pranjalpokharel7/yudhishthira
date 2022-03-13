@@ -1,0 +1,120 @@
+html {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', sans-serif;    
+}
+
+.actions {
+    margin-top: 20px
+}
+
+.actions h2 {
+    display: inline-block;
+    padding: 15px 40px;
+    border-radius: 5px;
+    background-clip: padding-box;
+    background: #f6f6f6;
+    color: #a0a0a0;
+    text-decoration: none;
+    margin-right: -10px;
+    position: relative
+}
+
+.actions a:hover {
+    background: #dadada;
+    color: #fff;
+    transition: all .3s ease-out;
+    z-index: 1000
+}
+
+.actions a.active {
+    z-index: 100;
+    background: #e8e8e8;
+    color: #1e1e1e;
+}
+
+.txTable {
+    width: 100%;
+    /* overflow-x: scroll */
+}
+
+.table {
+    width: 100%;
+    margin-top: 20px
+}
+
+.table th a {
+    color: #5e84f7;
+    text-decoration: none;
+    font-size: 12px;
+    padding-left: 15px
+}
+
+.table th a i {
+    position: absolute;
+    margin-left: -25px;
+    margin-top: -2px
+}
+
+.table th a:hover {
+    text-decoration: underline
+}
+
+.table td,
+.table th {
+    text-align: left;
+    padding: 15px;
+    font-size: 13px !important;
+    font-weight: 700;
+    border-bottom: 1px solid #e5e5e5
+}
+
+.table td {
+    font-weight: 400
+}
+
+.table td a {
+    color: #5e84f7;
+    text-decoration: none
+}
+
+.table td a:hover {
+    text-decoration: underline
+}
+
+.table td span {
+    color: #939393
+}
+
+.table td .hashLoader {
+    width: 250px
+}
+
+.table tr:hover {
+    background: #f1f1f1;
+    transition: all .3s ease-out
+}
+
+.table .hidden {
+    display: none
+}
+
+.table .expandFlex {
+    display: flex;
+    margin-bottom: 50px;
+}
+
+.table .expandFlex .fromHolder,
+.table .expandFlex .toHolder {
+    width: 48%;
+    padding: 10px;
+}
+
+.table .expandFlex .arrow {
+    text-align: center;
+    padding-top: 8px
+}

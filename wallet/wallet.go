@@ -31,6 +31,14 @@ func PublicKeyToBytes(pubKey *rsa.PublicKey) ([]byte, error) {
 	return pubKeyBytes, nil
 }
 
+func BytesToPublicKey(pubKeyBytes []byte) (*rsa.PublicKey, error) {
+	publicKey, err := x509.ParsePKIXPublicKey(pubKeyBytes)
+	if err != nil {
+		return nil, err
+	}
+	return publicKey.(*rsa.PublicKey), nil
+}
+
 // instead of using rand.Reader maybe ask the user for passphrase/key of words
 func (wallet *Wallet) GenerateKeyPair() error {
 	privateKey, err := rsa.GenerateKey(rand.Reader, RSA_KEY_SIZE)

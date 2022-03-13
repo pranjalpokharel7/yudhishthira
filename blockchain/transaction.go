@@ -12,19 +12,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pranjalpokharel7/yudhishthira/utility"
 	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
 
 // TODO: timestamp of item -> when coinbase? necessary?
 type Tx struct {
-	TxID       HexByte `json:"txID"`       // hash of this transaction
-	UTXOID     HexByte `json:"UTXOID"`     // reference to the hash last transaction the item was a part of
-	Signature  HexByte `json:"signature"`  // signature of seller i.e. we need proof that transaction was indeed confirmed by the seller
-	ItemHash   HexByte `json:"itemHash"`   // hash of the item involved in transaction
-	SellerHash HexByte `json:"sellerHash"` // pubkey hash of the seller
-	BuyerHash  HexByte `json:"buyerHash"`  // pubkey hash of the buyer
-	Amount     uint64  `json:"amount"`     // amount invloved in transaction
-	Timestamp  uint64  `json:"timestamp"`
+	TxID       utility.HexByte `json:"txID"`       // hash of this transaction
+	UTXOID     utility.HexByte `json:"UTXOID"`     // reference to the hash last transaction the item was a part of
+	Signature  utility.HexByte `json:"signature"`  // signature of seller i.e. we need proof that transaction was indeed confirmed by the seller
+	ItemHash   utility.HexByte `json:"itemHash"`   // hash of the item involved in transaction
+	SellerHash utility.HexByte `json:"sellerHash"` // pubkey hash of the seller
+	BuyerHash  utility.HexByte `json:"buyerHash"`  // pubkey hash of the buyer
+	Amount     uint64          `json:"amount"`     // amount invloved in transaction
+	Timestamp  uint64          `json:"timestamp"`
 }
 
 func (tx Tx) SerializeTxToGOB() ([]byte, error) {
@@ -79,7 +80,7 @@ func (tx *Tx) CalculateTxHash() ([]byte, error) {
 	return hash[:], nil
 }
 
-func CoinBaseTransaction(srcWallet *wallet.Wallet, itemHash []byte, basePrice uint64, chain *BlockChain) (*Tx, error) {
+func CoinBaseTransaction(srcWallet *wallet.Wallet, itemHash []byte, amount uint64, chain *BlockChain) (*Tx, error) {
 	// check if the item already exists in the chain before, if yes, can't enter existing item as new item
 	itemExists, err := chain.FindItemExists(itemHash)
 	if err != nil {
@@ -109,7 +110,7 @@ func CoinBaseTransaction(srcWallet *wallet.Wallet, itemHash []byte, basePrice ui
 	coinBaseTx := Tx{
 		ItemHash:   itemHash,
 		BuyerHash:  pubKeyHash,
-		Amount:     basePrice,
+		Amount:     amount,
 		SellerHash: nil,
 		UTXOID:     nil,
 		Timestamp:  uint64(time.Now().Unix()),
@@ -132,9 +133,9 @@ func (tx *Tx) IsCoinbase() bool {
 	return tx.SellerHash == nil && tx.UTXOID == nil
 }
 
-func NewTransaction(srcWallet *wallet.Wallet, destinationAddr string, itemHash []byte, basePrice uint64, chain *BlockChain) (*Tx, error) {
+func NewTransaction(srcWallet *wallet.Wallet, destinationAddr string, itemHash []byte, amount uint64, chain *BlockChain) (*Tx, error) {
 	// fetch last transaction the item was a part of
-	lastBlockWithItem, txIndex, err := chain.GetLastBlockWithItem(itemHash)
+	lastBlockWithItem, txIndex, err := chain.LastBlockWithItem(itemHash)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +159,7 @@ func NewTransaction(srcWallet *wallet.Wallet, destinationAddr string, itemHash [
 		ItemHash:   itemHash,
 		SellerHash: sellerPubKeyHash,
 		BuyerHash:  buyerPubKeyHash,
-		Amount:     basePrice,
+		Amount:     amount,
 		UTXOID:     lastTxWithItem.TxID,
 		Timestamp:  uint64(time.Now().Unix()),
 	}
