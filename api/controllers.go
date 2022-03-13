@@ -279,12 +279,8 @@ func VerifyToken() gin.HandlerFunc {
 
 func SignToken(wlt *wallet.Wallet) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
-		tokenData := TokenSignModel{}
-		if err := c.BindJSON(&tokenData); err != nil {
-			c.AbortWithError(400, err)
-			return
-		}
-		hashedToken := sha256.Sum256([]byte(tokenData.Token))
+		tokenData := c.Param("token")
+		hashedToken := sha256.Sum256([]byte(tokenData))
 		signedToken, err := rsa.SignPSS(rand.Reader, &wlt.PrivateKey, crypto.SHA256, hashedToken[:], nil)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
@@ -294,6 +290,18 @@ func SignToken(wlt *wallet.Wallet) gin.HandlerFunc {
 			"signed_token": hex.EncodeToString(signedToken),
 		}
 		c.JSON(200, signedTokenJSON)
+	}
+	return fn
+}
+
+func CalculateItemHash() gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		itemID := c.Param("itemid")
+		itemHash := sha256.Sum256([]byte(itemID))
+		itemHashJSON := map[string]interface{}{
+			"item_hash": hex.EncodeToString(itemHash[:]),
+		}
+		c.JSON(200, itemHashJSON)
 	}
 	return fn
 }

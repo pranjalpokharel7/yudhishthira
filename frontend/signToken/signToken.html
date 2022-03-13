@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Sign Token</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+	<div>
+		<form id="token-form">
+			<div>
+				<label for="token">Token</label>
+				<input type="text" name="token" required="true">
+			</div>
+			<button type="submit">Sign Token</button>
+		</form>
+	</div>
+	<div>
+		The signed token is :
+		<p id="signedToken"></p>
+	</div>
+</body>
+<script src="signToken.js"></script>
+</html>
