@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+    <div class="login-box">
+        <h2>Transfer</h2>
+        <form id="transfer-form">
+            <div class="user-box">
+                <input type="text" name="destination" required="">
+                <label for="destination">Destination Address</label>
+            </div>
+            <div class="user-box">
+                <input type="text" name="item_hash" required="">
+                <label for="item_hash">Item Hash</label>
+            </div>
+            <div class="user-box">
+                <input type="number" name="amount" required="">
+                <label for="amount">Amount</label>
+            </div>
+            <button id="submit-btn" class="btn" type="submit">Submit</button>
+        </form>
+    </div>
+
+    <div class="info">
+        <h2>Transaction Information</h2>
+            <div class="info-box">
+                <label>Buyer Hash</label>
+                <p id="b-hash" class="val">-</p><br>
+                <label>Seller Hash</label>
+                <p id="s-hash" class="val">-</p><br>
+                <label>Item Hash</label>
+                <p id="i-hash" class="val">-</p><br>
+                <label>Timestamp</label>
+                <p id="tstamp" class="val">-</p><br>
+                <label >TxId</label>
+                <p id="txid" class="val">-</p><br>
+                <label >Amount</label>
+                <p id="amount" class="val">-</p><br>
+            </div>
+            <button id="clear-btn" class="btn" type="button">Clear</button>
+    </div>
+    <script src="./transfer.js"></script>
+</body>
+
+</html>
+
