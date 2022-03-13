@@ -56,6 +56,22 @@ func GetLastNBlocksResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
 	return fn
 }
 
+func GetLastNTxsResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		n, err := strconv.Atoi(c.Param("n"))
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "invalid number provided: can not be parsed as integer"})
+		}
+		if n < 0 {
+			c.JSON(400, ErrorJSON{ErrorMsg: "negative number provided: tx count can only be positive"})
+		}
+		lastNBlocks := chain.GetLastNTxs(uint64(n))
+		c.JSON(200, lastNBlocks)
+
+	}
+	return fn
+}
+
 func GetItemTransactionHistoryResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 		itemHashString := c.Param("itemhash")
@@ -129,7 +145,8 @@ func StartServer(chain *blockchain.BlockChain) {
 	router.GET("/wallet/info/:address", GetWalletInfoResponse(chain))
 	router.GET("/wallet/items/:address", GetWalletOwnedItemsResponse(chain)) // get items currently owned by the wallet address
 
-	// misc endpoint
+	// transaction endpoint
+	router.GET("/transaction/last/:n", GetLastNTxsResponse(chain))
 	router.POST("/transaction/new")
 	router.POST("/transaction/coinbase")
 
