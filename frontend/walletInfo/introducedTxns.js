@@ -1,4 +1,4 @@
-const fetchPromise = fetch('http://localhost:8080/wallet/info/DuWsoUYuWYySNByFpVQge4ivB4KkfF1zw');
+const fetchPromise = fetch('http://localhost:8080/my-wallet/info');
 
 fetchPromise
     .then(response => {
