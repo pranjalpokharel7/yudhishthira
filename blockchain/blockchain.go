@@ -2,11 +2,13 @@ package blockchain
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
 	"github.com/dgraph-io/badger"
 	"github.com/pranjalpokharel7/yudhishthira/utility"
+	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
 
 // technically block chain is just a chain of blocks
@@ -67,37 +69,20 @@ func InitBlockChain() *BlockChain {
 	return blockchain
 }
 
-func (blockchain *BlockChain) AddBlock(latestBlock *Block) {
-	var lastHash []byte
-	var lastBlock *Block
+func (blockchain *BlockChain) AddBlock(latestBlock *Block) error {
+	// check if block hash is correct
+	verifiedBlockHash := latestBlock.VerifyBlockHash()
+	if !verifiedBlockHash {
+		return errors.New("block hash does not match")
+	}
 
-	// 1) Get the hash of the last block from the chain
-	err := blockchain.Database.View(func(txn *badger.Txn) error {
-		lastHashQuery, err := txn.Get([]byte(LAST_HASH))
-		utility.ErrThenPanic(err)
+	// check if proof of work has been done on the block
+	verifiedProof := latestBlock.VerifyProof()
+	if !verifiedProof {
+		return errors.New("proof of work hasn't been done on the block")
+	}
 
-		err = lastHashQuery.Value(func(val []byte) error {
-			lastHash = append(lastHash, val...)
-			return nil
-		})
-
-		lastBlockQuery, err := txn.Get(lastHash)
-		utility.ErrThenPanic(err)
-
-		err = lastBlockQuery.Value(func(val []byte) error {
-			lastBlock, err = DeserializeBlockFromGOB(val)
-			return err
-		})
-		return err
-	})
-	utility.ErrThenPanic(err)
-
-	// 2) Create new block with last hash pointed to the last hash key value in the database
-	latestBlock.PreviousHash = lastHash
-	latestBlock.Height = lastBlock.Height + 1
-	ProofOfWork(latestBlock, DIFFICULTY) // TODO: create an abstraction methodf MineBlock(), POW can only be run after linking previous hash
-
-	err = blockchain.Database.Update(func(txn *badger.Txn) error {
+	err := blockchain.Database.Update(func(txn *badger.Txn) error {
 		latestBlockSerialized, err := latestBlock.SerializeBlockToGOB()
 		utility.ErrThenPanic(err)
 
@@ -110,7 +95,7 @@ func (blockchain *BlockChain) AddBlock(latestBlock *Block) {
 		return err
 	})
 
-	utility.ErrThenPanic(err)
+	return err
 }
 
 // return the last block from the chain and iterator backwards in the chain
@@ -160,8 +145,22 @@ func (chain *BlockChain) GetChainHeight() (uint64, error) {
 
 func (blockchain *BlockChain) GetHeight() uint64 {
 	height, _ := blockchain.GetChainHeight()
-
 	return height
+}
+
+func (blockchain *BlockChain) GetLastNBlocks(n uint64) []*Block {
+	var lastNBlocks []*Block
+
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+
+	for block, i := iter.GetBlockAndIter(), uint64(0); i < n && block != nil; block, i = iter.GetBlockAndIter(), i+1 {
+		lastNBlocks = append(lastNBlocks, block)
+	}
+
+	return lastNBlocks
 }
 
 func (blockchain *BlockChain) GetBlockHashes(blockHash []byte) [][]byte {
@@ -197,10 +196,8 @@ func (blockchain *BlockChain) GetBlockHashesFromHeight(height uint64) [][]byte {
 	}
 
 	// we only need heights after a certain block and not the block with the matching itself
-	block := iter.GetBlockAndIter()
-	for block.Height != height {
+	for block := iter.GetBlockAndIter(); block != nil && block.Height != height; block = iter.GetBlockAndIter() {
 		hashes = append(hashes, block.BlockHash) // TODO: need to add in reverse order? or reverse at last?
-		block = iter.GetBlockAndIter()
 	}
 
 	for i := len(hashes) - 1; i >= 0; i-- {
@@ -227,6 +224,16 @@ func (blockchain *BlockChain) GetBlock(blockhash []byte) (*Block, error) {
 	return nil, err
 }
 
+func (blockchain *BlockChain) LastBlock() *Block {
+	itr := &BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+
+	block := itr.GetBlockAndIter()
+	return block
+}
+
 func (blockchain *BlockChain) PrintChain() {
 	iter := BlockChainIterator{
 		CurrentHash: blockchain.LastHash,
@@ -239,25 +246,20 @@ func (blockchain *BlockChain) PrintChain() {
 	}
 }
 
-// i.e. find unspent transaction outputs - UTXOs
-func (blockchain *BlockChain) FindItemsOwned(pubKeyHash []byte) (map[string]Tx, error) {
-	objectsOwned := make(map[string]Tx)
-	// var objectsOwned [][]byte
-	return objectsOwned, nil
-}
-
 func (blockchain *BlockChain) FindItemExists(itemHash []byte) (bool, error) {
 	iter := BlockChainIterator{
 		CurrentHash: blockchain.LastHash,
 		Database:    blockchain.Database,
 	}
 
-	// if nil is returned then that means we reached the genesis block on iteration
+	// if nil is returned then that means we reached beyond genesis block on iteration
 	for block := iter.GetBlockAndIter(); block != nil; block = iter.GetBlockAndIter() {
-		for _, txNode := range block.TxMerkleTree.LeafNodes {
-			if bytes.Equal(txNode.Transaction.ItemHash, itemHash) {
-				// fmt.Println("Item exists in the chain beforehand")
-				return true, nil
+		if block.TxMerkleTree != nil {
+			for _, txNode := range block.TxMerkleTree.LeafNodes {
+				if bytes.Equal(txNode.Transaction.ItemHash, itemHash) {
+					// fmt.Println("Item exists in the chain beforehand")
+					return true, nil
+				}
 			}
 		}
 	}
@@ -265,7 +267,8 @@ func (blockchain *BlockChain) FindItemExists(itemHash []byte) (bool, error) {
 	return false, nil
 }
 
-func (blockchain *BlockChain) GetLastBlockWithItem(itemHash []byte) (*Block, int, error) {
+// gets last block which contained the item
+func (blockchain *BlockChain) LastBlockWithItem(itemHash []byte) (*Block, int, error) {
 	iter := BlockChainIterator{
 		CurrentHash: blockchain.LastHash,
 		Database:    blockchain.Database,
@@ -279,10 +282,136 @@ func (blockchain *BlockChain) GetLastBlockWithItem(itemHash []byte) (*Block, int
 			}
 		}
 	}
-	return nil, -1, errors.New("block with item does not exist")
+	err := fmt.Sprintf("item with hash %x does not exist", itemHash)
+	return nil, -1, errors.New(err)
 }
 
-// return blocks that contains the item
-func GetAllBlocksWithItem() {
+// return all transactions that contain the item
+func (blockchain *BlockChain) TxsIncludingItem(itemHash []byte) []*Tx {
+	var itemTxHistory []*Tx
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+	for block := iter.GetBlockAndIter(); block != nil; block = iter.GetBlockAndIter() {
+		if block.TxMerkleTree != nil {
+			for _, txNode := range block.TxMerkleTree.LeafNodes {
+				if bytes.Equal(txNode.Transaction.ItemHash, itemHash) {
+					itemTxHistory = append(itemTxHistory, &txNode.Transaction)
+				}
+			}
+		}
+	}
+	return itemTxHistory
+}
 
+// get all coinbase transactions from the chain i.e. transactions in which an item was first introduced in the chain
+func (blockchain *BlockChain) AllCoinBaseTxs() []*Tx {
+	var tx []*Tx
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+	for block := iter.GetBlockAndIter(); block != nil; block = iter.GetBlockAndIter() {
+		if block.TxMerkleTree != nil {
+			for _, txNode := range block.TxMerkleTree.LeafNodes {
+				if txNode.Transaction.IsCoinbase() {
+					tx = append(tx, &txNode.Transaction)
+				}
+			}
+		}
+	}
+	return tx
+}
+
+// get all coinbase txs by the wallet (number of items introduced into the chain)
+func (blockchain *BlockChain) WalletCoinBaseTxs(walletAddress string) ([]*Tx, error) {
+	var userCoinBaseTxs []*Tx
+	coinBaseTxs := blockchain.AllCoinBaseTxs()
+	pubKeyHash, err := wallet.PubKeyHashFromAddress(walletAddress)
+	if err != nil {
+		return nil, err
+	}
+	for _, coinbaseTx := range coinBaseTxs {
+		if bytes.Equal(coinbaseTx.BuyerHash, pubKeyHash) {
+			userCoinBaseTxs = append(userCoinBaseTxs, coinbaseTx)
+		}
+	}
+	return userCoinBaseTxs, nil
+}
+
+// get available rewards for further transactions
+func (blockchain *BlockChain) WalletMinedBlocks(walletAddress string) ([]*Block, error) {
+	var minedBlocks []*Block
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+	pubKeyHash, err := wallet.PubKeyHashFromAddress(walletAddress)
+	if err != nil {
+		return nil, err
+	}
+	for block := iter.GetBlockAndIter(); block != nil; block = iter.GetBlockAndIter() {
+		if bytes.Equal(block.Miner, pubKeyHash) {
+			minedBlocks = append(minedBlocks, block)
+		}
+	}
+	return minedBlocks, nil
+}
+
+// check if wallet has sufficient funds for coinbase transaction
+func HasFundsForCoinbaseTx(walletAddress string, blockchain *BlockChain) (bool, error) {
+	minedBlocks, err := blockchain.WalletMinedBlocks(walletAddress)
+	if err != nil {
+		return false, err
+	}
+
+	coinbaseTxsDone, err := blockchain.WalletCoinBaseTxs(walletAddress)
+	if err != nil {
+		return false, err
+	}
+
+	hasSufficientFunds := len(minedBlocks) > MINED_TO_SPEND_RATIO*len(coinbaseTxsDone)
+	return hasSufficientFunds, nil
+}
+
+// TODO: Optimize this function
+// TODO: Maybe generalize this function to get states of all items in the chain, since we're doing that anyway
+func (blockchain *BlockChain) WalletOwnedItems(walletAddress string) ([]string, error) {
+	var ownedItems []string
+	chainItems := make(map[string]bool)
+
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+
+	pubKeyHash, err := wallet.PubKeyHashFromAddress(walletAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	for block := iter.GetBlockAndIter(); block != nil; block = iter.GetBlockAndIter() {
+		if block.TxMerkleTree != nil {
+			for _, txNode := range block.TxMerkleTree.LeafNodes {
+				itemHashString := hex.EncodeToString(txNode.Transaction.ItemHash)
+
+				if _, itemRecorded := chainItems[itemHashString]; !itemRecorded {
+					if bytes.Equal(txNode.Transaction.BuyerHash, pubKeyHash) {
+						chainItems[itemHashString] = true
+					} else if bytes.Equal(txNode.Transaction.SellerHash, pubKeyHash) {
+						chainItems[itemHashString] = false
+					}
+				}
+			}
+		}
+	}
+
+	for itemHash, ownershipState := range chainItems {
+		if ownershipState {
+			ownedItems = append(ownedItems, itemHash)
+		}
+	}
+
+	return ownedItems, nil
 }
