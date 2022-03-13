@@ -30,6 +30,7 @@ func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain) {
 	router.GET("/wallet/items/:address", GetWalletOwnedItemsResponse(chain))
 
 	// personal wallet endpoint, TODO: combine with generalized wallet above
+	router.GET("/my-wallet/address", GetMyWalletAddressResponse(wlt))
 	router.GET("/my-wallet/info", GetMyWalletInfoResponse(wlt, chain))
 	router.GET("/my-wallet/items", GetMyWalletInfoResponse(wlt, chain))
 
