@@ -10,19 +10,22 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/pranjalpokharel7/yudhishthira/utility"
 	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
 
 // TODO: timestamp of item -> when coinbase? necessary?
 type Tx struct {
-	TxID       HexByte `json:"txID"`       // hash of this transaction
-	UTXOID     HexByte `json:"UTXOID"`     // reference to the hash last transaction the item was a part of
-	Signature  HexByte `json:"signature"`  // signature of seller i.e. we need proof that transaction was indeed confirmed by the seller
-	ItemHash   HexByte `json:"itemHash"`   // hash of the item involved in transaction
-	SellerHash HexByte `json:"sellerHash"` // pubkey hash of the seller
-	BuyerHash  HexByte `json:"buyerHash"`  // pubkey hash of the seller
-	Amount     uint64  `json:"amount"`     // amount invloved in transaction
+	TxID       utility.HexByte `json:"txID"`       // hash of this transaction
+	UTXOID     utility.HexByte `json:"UTXOID"`     // reference to the hash last transaction the item was a part of
+	Signature  utility.HexByte `json:"signature"`  // signature of seller i.e. we need proof that transaction was indeed confirmed by the seller
+	ItemHash   utility.HexByte `json:"itemHash"`   // hash of the item involved in transaction
+	SellerHash utility.HexByte `json:"sellerHash"` // pubkey hash of the seller
+	BuyerHash  utility.HexByte `json:"buyerHash"`  // pubkey hash of the buyer
+	Amount     uint64          `json:"amount"`     // amount invloved in transaction
+	Timestamp  uint64          `json:"timestamp"`
 }
 
 func (tx Tx) SerializeTxToGOB() ([]byte, error) {
@@ -46,12 +49,14 @@ func (tx Tx) String() string {
 	lines = append(lines, fmt.Sprintf("Seller Hash: %x", tx.SellerHash))
 	lines = append(lines, fmt.Sprintf("Buyer Hash: %x", tx.BuyerHash))
 	lines = append(lines, fmt.Sprintf("Amount: %d", tx.Amount))
+	lines = append(lines, fmt.Sprintf("Timestamp: %d", tx.Timestamp))
 	return strings.Join(lines, "\n")
 }
 
 func (tx *Tx) deepCopy() Tx {
 	var txCopy Tx
 	txCopy.Amount = tx.Amount
+	txCopy.Timestamp = tx.Timestamp
 	copy(txCopy.BuyerHash, tx.BuyerHash)
 	copy(txCopy.SellerHash, tx.SellerHash)
 	copy(txCopy.ItemHash, tx.ItemHash)
@@ -86,15 +91,19 @@ func CoinBaseTransaction(srcWallet *wallet.Wallet, itemHash []byte, basePrice ui
 	}
 
 	// check if the address is valid
-	pubKeyHash, err := wallet.PubKeyHashFromAddress(string(srcWallet.Address))
+	walletAddress := string(srcWallet.Address)
+	pubKeyHash, err := wallet.PubKeyHashFromAddress(walletAddress)
 	if err != nil {
 		return nil, err
 	}
 
 	// check if the address has sufficient funds for coinbase transactions
-	hasFunds := wallet.CheckSufficientFunds(pubKeyHash) // TODO: complete this method later, for now just returns true
+	hasFunds, err := HasFundsForCoinbaseTx(walletAddress, chain)
 	if !hasFunds {
 		return nil, errors.New("the address owner does not have sufficient funds for introducing items into the chain")
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	// coinbase transactions have seller hash nil, previous linked output nil
@@ -104,6 +113,7 @@ func CoinBaseTransaction(srcWallet *wallet.Wallet, itemHash []byte, basePrice ui
 		Amount:     basePrice,
 		SellerHash: nil,
 		UTXOID:     nil,
+		Timestamp:  uint64(time.Now().Unix()),
 	}
 
 	// calculate transaciton hash
@@ -125,7 +135,7 @@ func (tx *Tx) IsCoinbase() bool {
 
 func NewTransaction(srcWallet *wallet.Wallet, destinationAddr string, itemHash []byte, basePrice uint64, chain *BlockChain) (*Tx, error) {
 	// fetch last transaction the item was a part of
-	lastBlockWithItem, txIndex, err := chain.GetLastBlockWithItem(itemHash)
+	lastBlockWithItem, txIndex, err := chain.LastBlockWithItem(itemHash)
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +161,7 @@ func NewTransaction(srcWallet *wallet.Wallet, destinationAddr string, itemHash [
 		BuyerHash:  buyerPubKeyHash,
 		Amount:     basePrice,
 		UTXOID:     lastTxWithItem.TxID,
+		Timestamp:  uint64(time.Now().Unix()),
 	}
 
 	// calculate transaction hash
@@ -192,9 +203,4 @@ func (tx *Tx) SignTransaction(wlt *wallet.Wallet) error {
 // if we don't get any errors from verify signature then our signature is valid
 func VerifySignature(tx *Tx, sellerPubKey *rsa.PublicKey) error {
 	return rsa.VerifyPSS(sellerPubKey, crypto.SHA256, tx.TxID, tx.Signature, nil)
-}
-
-// TODO: all these functions below to be implemented
-func MinerReward() {
-	// TODO: set mining difficulty based on transaction amount? to prevent money laundering lol
 }

@@ -13,8 +13,8 @@ import (
 
 // node struct, to encompass data
 type Node struct {
-	HashValue   HexByte `json:"hash"` // contains the hashed byte
-	parent      *Node   // parent node
+	HashValue   utility.HexByte `json:"hash"` // contains the hashed byte
+	parent      *Node           // parent node
 	right       *Node
 	left        *Node
 	Transaction Tx `json:"tx"` // transaction for data storage
