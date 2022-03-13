@@ -30,10 +30,12 @@ func GetLastBlockWithItemResponse(chain *blockchain.BlockChain) gin.HandlerFunc 
 		itemHash, err := hex.DecodeString(itemHashString)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "provided hash can not be decoded"})
+			return
 		}
 		lastBlock, _, err := chain.LastBlockWithItem(itemHash)
 		if err != nil {
 			c.JSON(404, ErrorJSON{ErrorMsg: "item with hash not found"})
+			return
 		}
 		c.JSON(200, lastBlock)
 	}
@@ -45,9 +47,11 @@ func GetLastNBlocksResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
 		n, err := strconv.Atoi(c.Param("n"))
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "invalid height provided: can not be parsed as integer"})
+			return
 		}
 		if n < 0 {
 			c.JSON(400, ErrorJSON{ErrorMsg: "negative height provided: block height can only be positive"})
+			return
 		}
 		lastNBlocks := chain.GetLastNBlocks(uint64(n))
 		c.JSON(200, lastNBlocks)
@@ -61,9 +65,11 @@ func GetLastNTxsResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
 		n, err := strconv.Atoi(c.Param("n"))
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "invalid number provided: can not be parsed as integer"})
+			return
 		}
 		if n < 0 {
 			c.JSON(400, ErrorJSON{ErrorMsg: "negative number provided: tx count can only be positive"})
+			return
 		}
 		lastNBlocks := chain.GetLastNTxs(uint64(n))
 		c.JSON(200, lastNBlocks)
@@ -78,6 +84,7 @@ func GetItemTransactionHistoryResponse(chain *blockchain.BlockChain) gin.Handler
 		itemHash, err := hex.DecodeString(itemHashString)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "provided hash can not be decoded"})
+			return
 		}
 		itemTxHistory := chain.TxsIncludingItem(itemHash)
 		c.JSON(200, itemTxHistory)
@@ -91,10 +98,12 @@ func GetWalletInfoResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
 		coinbaseTxs, err := chain.WalletCoinBaseTxs(walletAddress)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+			return
 		}
 		minedBlocks, err := chain.WalletMinedBlocks(walletAddress)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+			return
 		}
 		walletInfo := map[string]interface{}{
 			"coinbase_txs": coinbaseTxs,
@@ -111,6 +120,44 @@ func GetWalletOwnedItemsResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
 		ownedItems, err := chain.WalletOwnedItems(walletAddress)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+			return
+		}
+		walletInfo := map[string]interface{}{
+			"owned_items": ownedItems,
+		}
+		c.JSON(200, walletInfo)
+	}
+	return fn
+}
+
+func GetMyWalletInfoResponse(wlt *wallet.Wallet, chain *blockchain.BlockChain) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		coinbaseTxs, err := chain.WalletOwnedItems(string(wlt.Address))
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+			return
+		}
+		minedBlocks, err := chain.WalletMinedBlocks(string(wlt.Address))
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+			return
+		}
+		walletInfo := map[string]interface{}{
+			"coinbase_txs": coinbaseTxs,
+			"mined_blocks": minedBlocks,
+		}
+		c.JSON(200, walletInfo)
+	}
+	return fn
+}
+
+// TODO: make a generalized function for this
+func GetMyWalletOwnedItemsResponse(wlt *wallet.Wallet, chain *blockchain.BlockChain) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		ownedItems, err := chain.WalletOwnedItems(string(wlt.Address))
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+			return
 		}
 		walletInfo := map[string]interface{}{
 			"owned_items": ownedItems,

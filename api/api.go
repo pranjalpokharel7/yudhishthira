@@ -25,9 +25,13 @@ func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain) {
 	router.GET("/item/history/:itemhash", GetItemTransactionHistoryResponse(chain))
 	router.GET("/item/last-block/:itemhash", GetLastBlockWithItemResponse(chain))
 
-	// wallet endpoint
+	// general wallet endpoint
 	router.GET("/wallet/info/:address", GetWalletInfoResponse(chain))
-	router.GET("/wallet/items/:address", GetWalletOwnedItemsResponse(chain)) // get items currently owned by the wallet address
+	router.GET("/wallet/items/:address", GetWalletOwnedItemsResponse(chain))
+
+	// personal wallet endpoint, TODO: combine with generalized wallet above
+	router.GET("/my-wallet/info", GetMyWalletInfoResponse(wlt, chain))
+	router.GET("/my-wallet/items", GetMyWalletInfoResponse(wlt, chain))
 
 	// transaction endpoint
 	router.GET("/transaction/last/:n", GetLastNTxsResponse(chain))
