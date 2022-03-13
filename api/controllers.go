@@ -297,3 +297,24 @@ func SignToken(wlt *wallet.Wallet) gin.HandlerFunc {
 	}
 	return fn
 }
+
+func GetItemOwner(chain *blockchain.BlockChain) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		itemHashString := c.Param("itemhash")
+		itemHash, err := hex.DecodeString(itemHashString)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "provided hash can not be decoded"})
+			return
+		}
+		lastTxWithItem, err := blockchain.LastTxWithItem(chain, itemHash)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "provided hash can not be decoded"})
+			return
+		}
+		txOwnerInfo := map[string]interface{}{
+			"item_owner": lastTxWithItem.BuyerHash,
+		}
+		c.JSON(200, txOwnerInfo)
+	}
+	return fn
+}

@@ -24,6 +24,7 @@ func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain) {
 	// item endpoint
 	router.GET("/item/history/:itemhash", GetItemTransactionHistoryResponse(chain))
 	router.GET("/item/last-block/:itemhash", GetLastBlockWithItemResponse(chain))
+	router.GET("/item/owner/:itemhash", GetItemOwner(chain))
 
 	// general wallet endpoint
 	router.GET("/wallet/info/:address", GetWalletInfoResponse(chain))
