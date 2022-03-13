@@ -17,7 +17,7 @@ body {
     /* top: 50%; */
     /* left: 50%;  */
     width: 800px;
-    padding: 40px;
+    padding: 100px;
     /* transform: translate(60%, -50%); */
     background: rgba(0, 0, 0, .5);
     box-sizing: border-box;
@@ -26,19 +26,19 @@ body {
 }
 
 .info h2 {
-    margin: 0 0 30px;
+    margin: 0 0 40px;
     padding: 0;
     color: #fff;
-    font-size: 18px;
+    font-size: 25px;
     text-align: center;
 }
 
 .info p {
     margin: 0 0;
-    margin-top: 5px;
+    margin-top: 10px;
     padding: 0;
-    color: #fff;
-    font-size: 14px;
+    color: #03e9f4;
+    font-size: 16px;
     text-align: left;
 }
 
