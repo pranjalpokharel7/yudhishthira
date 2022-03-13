@@ -26,7 +26,9 @@ type BlockChainIterator struct {
 
 func InitBlockChain() *BlockChain {
 	var lastHash []byte
-	db, err := badger.Open(badger.DefaultOptions(DB_PATH))
+	opt := badger.DefaultOptions(DB_PATH)
+	opt.Truncate = true
+	db, err := badger.Open(opt)
 	utility.ErrThenPanic(err)
 
 	// to perform read-write operations, use Update
