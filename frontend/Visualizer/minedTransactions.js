@@ -1,21 +1,3 @@
-const latestMinedTransactions = [
-    {
-        id: "blockRow_0",
-        hash: "d2f5bd91aa389f4c7b487b0f3df89f335a65cc530d62559cdc01885da8f34681",
-        amountTransacted: "6.25",
-        date: new Date('2022-09-03T03:00:48'),
-        from: "bc1qn4xessapgj32gxmxq6n04yfestp5j8humq0jzm",
-        to: "3FntotDD41bs6t4aDxeXvyRhNB8dc8LQv4"
-    }, {
-        id: "blockRow_1",
-        hash: "d2fasdasdas89f4c7b487b0f3df89f33asdasd30d62559cdc01885daasdasdd1",
-        amountTransacted: "2.34",
-        date: new Date('2022-01-11T01:00:21'),
-        from: "bc1qn4xesasdasdxzczxcfestp5j8humq0jzm",
-        to: "3FntotDDasdasdasdsazxcgqwyRhNB8dcqwexz"
-    }
-];
-
 const fetchPromise = fetch('http://localhost:8080/transaction/last/10');
 
 fetchPromise
