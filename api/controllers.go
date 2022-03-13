@@ -1,6 +1,10 @@
 package api
 
 import (
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"strconv"
@@ -9,22 +13,6 @@ import (
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
 	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
-
-type ErrorJSON struct {
-	ErrorMsg string `json:"error"`
-}
-
-// TODO: add binding validation
-type NewTxFormInput struct {
-	Destination string `json:"destination" binding:"required"`
-	ItemHash    string `json:"item_hash" binding:"required"`
-	Amount      uint64 `json:"amount" binding:"required"`
-}
-
-type CoinBaseTxFormInput struct {
-	ItemHash string `json:"item_hash" binding:"required"`
-	Amount   uint64 `json:"amount" binding:"required"`
-}
 
 // GET Requests
 
@@ -172,6 +160,67 @@ func PostCoinbaseTransaction(wlt *wallet.Wallet, chain *blockchain.BlockChain) g
 			return
 		}
 		c.JSON(200, coinBaseTx)
+	}
+	return fn
+}
+
+func VerifyToken() gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		signedTokenData := TokenVerifyModel{}
+		if err := c.BindJSON(&signedTokenData); err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+
+		hashedOriginalToken := sha256.Sum256([]byte(signedTokenData.OriginalToken))
+		signedToken, err := hex.DecodeString(signedTokenData.SignedToken)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
+			return
+		}
+
+		pubKeyHex := signedTokenData.PublicKey
+		pubKeyBytes, err := hex.DecodeString(pubKeyHex)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
+			return
+		}
+		publicKey, err := wallet.BytesToPublicKey(pubKeyBytes)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
+			return
+		}
+
+		err = rsa.VerifyPSS(publicKey, crypto.SHA256, hashedOriginalToken[:], signedToken, nil)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
+			return
+		}
+		verifiedTokenJSON := map[string]interface{}{
+			"verified": true,
+		}
+		c.JSON(200, verifiedTokenJSON)
+	}
+	return fn
+}
+
+func SignToken(wlt *wallet.Wallet) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		tokenData := TokenSignModel{}
+		if err := c.BindJSON(&tokenData); err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+		hashedToken := sha256.Sum256([]byte(tokenData.Token))
+		signedToken, err := rsa.SignPSS(rand.Reader, &wlt.PrivateKey, crypto.SHA256, hashedToken[:], nil)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
+			return
+		}
+		signedTokenJSON := map[string]interface{}{
+			"signed_token": hex.EncodeToString(signedToken),
+		}
+		c.JSON(200, signedTokenJSON)
 	}
 	return fn
 }

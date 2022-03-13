@@ -34,5 +34,9 @@ func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain) {
 	router.POST("/transaction/new", PostNewTransaction(wlt, chain))
 	router.POST("/transaction/coinbase", PostCoinbaseTransaction(wlt, chain))
 
+	// token verification endpoint
+	router.POST("/token/verify", VerifyToken())
+	router.POST("/token/sign", SignToken(wlt))
+
 	router.Run(PORT)
 }
