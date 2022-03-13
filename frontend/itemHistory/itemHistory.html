@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Item History</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+    <header>
+        <div class="search">
+            <form id="search-form">
+                <input type="text" placeholder="Enter item hash" class="term">
+                <div class="results" style="display: none;"></div>
+                    <button id="btn" type="submit">Go</button>
+            </form>
+        </div>
+    </header>
+
+    <div class="actions">
+        <a href="./itemHistory.html" class="active">Item History</a>
+        <!-- <a href="./minedTransactions.html" class="active">Latest Mined Transactions</a> -->
+    </div>
+
+    <div class="txTable">
+        <table class="table">
+            <tbody id="minedTransactions">
+                <tr>
+                    <th>Transaction Hash</th>
+                    <th>Item Hash</th>
+                    <th>Amount Transacted</th>
+                    <th>Date</th>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <script src="./itemHistory.js"></script>
+</body>
+
+</html>

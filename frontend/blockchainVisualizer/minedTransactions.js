@@ -21,7 +21,7 @@ fetchPromise
                 <td><a href="#" class="txId">${bData.txID}</a></td>
                 <td><a href="#" class="txId">${bData.itemHash}</a></td>
                 <td class="amountTransacted"><b class="">${bData.amount}</b><br></td>
-                <td><div class="dateString">${bData.timestamp}</div></td>
+                <td><div class="dateString">${new Date(bData.timestamp*1000).toLocaleString()}</div></td>
             `;
             subRow.innerHTML = `
                 <td colspan="4">

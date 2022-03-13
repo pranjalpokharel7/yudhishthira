@@ -1,5 +1,5 @@
 
-const fetchPromise = fetch('http://localhost:8080/block/last/10');
+const fetchPromise = fetch('http://localhost:8080/my-wallet/info');
 
 fetchPromise
     .then(response => {
@@ -9,7 +9,7 @@ fetchPromise
         return response.json();
     })
     .then(json => {
-        let latestBlockDatas = json;
+        let latestBlockDatas = json.mined_blocks;
 
         let tblBody = document.getElementById("latestBlockTable");
         latestBlockDatas.forEach(bData => {
