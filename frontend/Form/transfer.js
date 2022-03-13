@@ -14,7 +14,7 @@ document.getElementById("transfer-form").addEventListener("submit", (e) => {
                 document.getElementById('b-hash').innerHTML = data.buyerHash;
                 document.getElementById('s-hash').innerHTML = data.sellerHash;
                 document.getElementById('i-hash').innerHTML = data.itemHash;
-                document.getElementById('tstamp').innerHTML = data.timestamp;
+                document.getElementById('tstamp').innerHTML = new Date(data.timestamp*1000).toLocaleString();
                 document.getElementById('txid').innerHTML = data.txID;
                 document.getElementById('amount').innerHTML = data.amount;
             } else {

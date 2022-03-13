@@ -132,7 +132,7 @@ func GetWalletOwnedItemsResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
 
 func GetMyWalletInfoResponse(wlt *wallet.Wallet, chain *blockchain.BlockChain) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
-		coinbaseTxs, err := chain.WalletOwnedItems(string(wlt.Address))
+		coinbaseTxs, err := chain.WalletCoinBaseTxs(string(wlt.Address))
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
 			return

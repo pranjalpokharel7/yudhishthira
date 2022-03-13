@@ -1,30 +1,32 @@
-const fetchPromise = fetch('http://localhost:8080/my-wallet/info');
+document.getElementById('search-form').addEventListener("submit", e => {
+    e.preventDefault();
+    let itHash = e.target[0].value;
+    const fetchPromise = fetch(`http://localhost:8080/item/history/${itHash}`);
+    fetchPromise
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(json => {
+            console.log(json);
+            let latestMinedTransactions = json;
 
-fetchPromise
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(json => {
-        let latestMinedTransactions = json.coinbase_txs;
-        console.log(latestMinedTransactions);
-
-        let tblBody2 = document.getElementById("latestBlockTable");
-        latestMinedTransactions.forEach(bData => {
-            let row = document.createElement("tr");
-            let subRow = document.createElement("tr");
-            row.setAttribute("id", bData.id);
-            row.setAttribute("class", "row");
-            subRow.setAttribute("class", `${bData.id}_expand expandContent`)
-            row.innerHTML = `
+            let tblBody2 = document.getElementById("minedTransactions");
+            latestMinedTransactions.forEach(bData => {
+                let row = document.createElement("tr");
+                let subRow = document.createElement("tr");
+                row.setAttribute("id", bData.id);
+                row.setAttribute("class", "row");
+                subRow.setAttribute("class", `${bData.id}_expand expandContent`)
+                row.innerHTML = `
                 <td><a href="#" class="txId">${bData.txID}</a></td>
                 <td><a href="#" class="txId">${bData.itemHash}</a></td>
                 <td class="amountTransacted"><b class="">${bData.amount}</b><br></td>
                 <td><div class="dateString">${new Date(bData.timestamp*1000).toLocaleString()}</div></td>
             `;
-            subRow.innerHTML = `
+                subRow.innerHTML = `
                 <td colspan="4">
                     <div class="expandFlex">
                         <div class="fromHolder">
@@ -42,11 +44,9 @@ fetchPromise
                     </div>
                 </td>
             `;
-            tblBody2.append(row);
-            tblBody2.append(subRow);
+                tblBody2.append(row);
+                tblBody2.append(subRow);
+            });
         });
-    });
-
-//latestMinedTransactions
-
+})
 
