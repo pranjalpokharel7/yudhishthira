@@ -167,6 +167,31 @@ func GetMyWalletOwnedItemsResponse(wlt *wallet.Wallet, chain *blockchain.BlockCh
 	return fn
 }
 
+func GetMyWalletAddressResponse(wlt *wallet.Wallet) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		walletAddress := string(wlt.Address)
+		walletPubkeyHash, err := wallet.PubKeyHashFromAddress(string(wlt.Address))
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+			return
+		}
+		walletPublicKey, err := wallet.PublicKeyToBytes(&wlt.PublicKey)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+			return
+		}
+		walletPubkeyHashHex := hex.EncodeToString(walletPubkeyHash)
+		walletPublicKeyHex := hex.EncodeToString(walletPublicKey)
+		walletAddressInfo := map[string]interface{}{
+			"address":         walletAddress,
+			"public_key":      walletPublicKeyHex,
+			"public_key_hash": walletPubkeyHashHex,
+		}
+		c.JSON(200, walletAddressInfo)
+	}
+	return fn
+}
+
 func PostNewTransaction(wlt *wallet.Wallet, chain *blockchain.BlockChain) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 		newTxData := NewTxFormInput{}
