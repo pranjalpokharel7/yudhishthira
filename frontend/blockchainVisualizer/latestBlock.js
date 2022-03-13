@@ -20,7 +20,7 @@ fetchPromise
                 <td><div class="blockTransactions">${bData.nonce}</div></td>
                 <td><a href="#" class="hashTd">${bData.block_hash}</a></td>
                 <td><b class="blockReward">${bData.difficulty}</b></td>
-                <td><div class="dateString">${bData.timestamp}</div></td>
+                <td><div class="dateString">${new Date(bData.timestamp*1000).toLocaleString()}</div></td>
             `;
             tblBody.append(row);
         });

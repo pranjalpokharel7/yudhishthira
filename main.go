@@ -17,7 +17,7 @@ func main() {
 
 	var wlt1 wallet.Wallet
 	var wlt0 wallet.Wallet
-	wlt1.LoadWalletFromFile("./k1.keystore")
+	wlt1.LoadWalletFromFile("./mykeys.keystore")
 	wlt0.LoadWalletFromFile("./k0.keystore")
 	fmt.Println(string(wlt1.Address))
 	fmt.Println(string(wlt0.Address))

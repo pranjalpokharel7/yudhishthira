@@ -1,0 +1,410 @@
+html {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', sans-serif;
+}
+
+.actions {
+    margin-top: 20px
+}
+
+.actions a {
+    display: inline-block;
+    padding: 15px 40px;
+    border-radius: 5px;
+    background-clip: padding-box;
+    background: #f6f6f6;
+    color: #a0a0a0;
+    text-decoration: none;
+    margin-right: -10px;
+    position: relative
+}
+
+.actions a:hover {
+    background: #dadada;
+    color: #fff;
+    transition: all .3s ease-out;
+    z-index: 1000
+}
+
+.actions a.active {
+    z-index: 100;
+    background: #e8e8e8;
+    color: #1e1e1e;
+}
+
+.txTable {
+    width: 100%;
+    /* overflow-x: scroll */
+}
+
+.table {
+    width: 100%;
+    margin-top: 20px
+}
+
+.table th a {
+    color: #5e84f7;
+    text-decoration: none;
+    font-size: 12px;
+    padding-left: 15px
+}
+
+.table th a i {
+    position: absolute;
+    margin-left: -25px;
+    margin-top: -2px
+}
+
+.table th a:hover {
+    text-decoration: underline
+}
+
+.table td,
+.table th {
+    text-align: left;
+    padding: 15px;
+    font-size: 13px !important;
+    font-weight: 700;
+    border-bottom: 1px solid #e5e5e5
+}
+
+.table td {
+    font-weight: 400
+}
+
+.table td a {
+    color: #5e84f7;
+    text-decoration: none
+}
+
+.table td a:hover {
+    text-decoration: underline
+}
+
+.table td span {
+    color: #939393
+}
+
+.table td .hashLoader {
+    width: 250px
+}
+
+.table tr:hover {
+    background: #f1f1f1;
+    transition: all .3s ease-out
+}
+
+.table .hidden {
+    display: none
+}
+
+.table .expandFlex {
+    display: flex;
+    margin-bottom: 50px;
+}
+
+.table .expandFlex .fromHolder,
+.table .expandFlex .toHolder {
+    width: 48%;
+    padding: 10px;
+}
+
+.table .expandFlex .arrow {
+    text-align: center;
+    padding-top: 8px
+}
+
+header {
+    background: #f5f5f5;
+    padding: 15px 2%;
+    border-bottom: 1px solid #e5e5e5;
+    display: flex;
+    justify-content: space-between
+}
+
+header .logo {
+    display: block;
+    width: 300px;
+    height: 52px;
+    background-image: url(/images/logo.png?v=3);
+    opacity: .8;
+    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=80)";
+    filter: alpha(opacity=80);
+    transition: all .3s ease-out
+}
+
+header .logo:hover {
+    opacity: 1;
+    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=100)";
+    filter: alpha(opacity=100);
+    transition: all .3s ease-out
+}
+
+header .nightMode {
+    position: absolute;
+    margin-left: -50px;
+    margin-top: 10px;
+    text-decoration: none;
+    color: #999
+}
+
+header .nightMode i {
+    font-size: 30px
+}
+
+header .nightMode .dark {
+    display: none
+}
+
+header .nightMode .light {
+    display: inherit
+}
+
+header .nightMode:hover {
+    color: #828282
+}
+
+header .menuBtn {
+    cursor: pointer;
+    position: absolute;
+    right: 13px;
+    top: 23px;
+    text-decoration: none;
+    color: #999
+}
+
+header .menuBtn i {
+    font-size: 30px
+}
+
+header .menuBtn:hover {
+    color: #828282
+}
+
+header .menuBtn .dropdown {
+    list-style: none;
+    border-radius: 8px;
+    background-clip: padding-box;
+    z-index: 9999;
+    display: none;
+    position: absolute;
+    right: 5px;
+    top: 32px;
+    margin: 0;
+    background: #fff;
+    padding: 0;
+    box-shadow: 0 0 13px 0 rgba(0, 0, 0, .19)
+}
+
+header .menuBtn .dropdown li:hover {
+    background: #f1f1f1
+}
+
+header .menuBtn .dropdown li a {
+    width: 160px;
+    display: block;
+    font-size: 14px;
+    color: #333;
+    text-decoration: none;
+    padding: 10px 10px 10px 20px
+}
+
+header .menuBtn .dropdown li:first-child {
+    border-top-right-radius: 8px;
+    border-top-left-radius: 8px
+}
+
+header .menuBtn .dropdown li:last-child {
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px
+}
+
+header .search {
+    margin-right: 20px;
+    background: #fff;
+    padding: 5px 15px;
+    clear: right;
+    border-radius: 5px;
+    background-clip: padding-box;
+    box-shadow: 0 0 13px 0 rgba(0, 0, 0, .1);
+    opacity: .8;
+    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=80)";
+    filter: alpha(opacity=80);
+    display: flex;
+    align-self: center
+}
+
+header .search form {
+    display: flex;
+    width: 100%;
+    position: relative
+}
+
+header .search .results {
+    z-index: 9998;
+    display: none;
+    width: 100%;
+    position: absolute;
+    background: #fff;
+    padding: 10px;
+    box-shadow: 0 0 13px 0 rgba(0, 0, 0, .19);
+    margin-left: -10px;
+    margin-top: 40px
+}
+
+header .search .results a {
+    color: #333;
+    font-size: 13px;
+    display: block;
+    text-decoration: none;
+    padding: 5px;
+    margin: 0 -10px
+}
+
+header .search .results a:hover {
+    background: #dadada
+}
+
+header .search .loader {
+    -webkit-animation-duration: 1s;
+    animation-duration: 1s;
+    -webkit-animation-fill-mode: forwards;
+    animation-fill-mode: forwards;
+    -webkit-animation-iteration-count: infinite;
+    animation-iteration-count: infinite;
+    -webkit-animation-name: placeHolderShimmer;
+    animation-name: placeHolderShimmer;
+    -webkit-animation-timing-function: linear;
+    animation-timing-function: linear;
+    background: #f6f7f8;
+    background: linear-gradient(90deg, #eee 8%, #ddd 18%, #eee 33%);
+    background-size: 800px 104px;
+    position: relative;
+    opacity: .5;
+    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=50)";
+    filter: alpha(opacity=50);
+    border-radius: 5px;
+    background-clip: padding-box
+}
+
+@-webkit-keyframes placeHolderShimmer {
+    0% {
+        background-position: -468px 0
+    }
+
+    to {
+        background-position: 468px 0
+    }
+}
+
+header .search:hover {
+    box-shadow: 0 0 13px 0 rgba(0, 0, 0, .19);
+    opacity: 1;
+    -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=100)";
+    filter: alpha(opacity=100)
+}
+
+header .search i {
+    width: 18px;
+    font-size: 18px
+}
+
+header .search input {
+    border: none;
+    outline: none;
+    width: 340px;
+    background: transparent
+}
+
+header .search img {
+    width: 27px;
+    height: 27px;
+    margin-top: 5px
+}
+
+header .search button {
+    outline: none;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    margin-left: 10px
+}
+
+header .search button i {
+    transition: all .3s ease-out;
+    font-size: 25px;
+    color: #929292
+}
+
+header .search button:hover i {
+    color: #666;
+    transition: all .3s ease-out
+}
+
+header .search .arrow {
+    color: #e5e5e5;
+    margin-right: 10px;
+    font-size: 24px
+}
+
+header .search .dropdown {
+    cursor: pointer;
+    position: relative
+}
+
+header .search .dropdown ul {
+    border-radius: 8px;
+    background-clip: padding-box;
+    z-index: 9999;
+    display: none;
+    position: absolute;
+    left: -15px;
+    top: 32px;
+    margin: 0;
+    background: #fff;
+    padding: 0;
+    box-shadow: 0 0 13px 0 rgba(0, 0, 0, .19)
+}
+
+header .search .dropdown ul li {
+    width: 160px;
+    display: block;
+    font-size: 14px;
+    color: #333;
+    text-decoration: none;
+    padding: 10px 10px 10px 20px
+}
+
+header .search .dropdown ul li:hover {
+    background: #f1f1f1
+}
+
+header .search .dropdown ul li img {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+    margin-right: 5px
+}
+
+header .search .dropdown ul li:first-child {
+    border-top-right-radius: 8px;
+    border-top-left-radius: 8px
+}
+
+header .search .dropdown ul li:last-child {
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px
+}
+
+header .search .dropdown:hover ul {
+    display: inherit
+}
+
+header:hover .results {
+    display: block
+}
