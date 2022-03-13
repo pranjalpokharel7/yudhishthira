@@ -80,7 +80,7 @@ func (tx *Tx) CalculateTxHash() ([]byte, error) {
 	return hash[:], nil
 }
 
-func CoinBaseTransaction(srcWallet *wallet.Wallet, itemHash []byte, basePrice uint64, chain *BlockChain) (*Tx, error) {
+func CoinBaseTransaction(srcWallet *wallet.Wallet, itemHash []byte, amount uint64, chain *BlockChain) (*Tx, error) {
 	// check if the item already exists in the chain before, if yes, can't enter existing item as new item
 	itemExists, err := chain.FindItemExists(itemHash)
 	if err != nil {
@@ -110,7 +110,7 @@ func CoinBaseTransaction(srcWallet *wallet.Wallet, itemHash []byte, basePrice ui
 	coinBaseTx := Tx{
 		ItemHash:   itemHash,
 		BuyerHash:  pubKeyHash,
-		Amount:     basePrice,
+		Amount:     amount,
 		SellerHash: nil,
 		UTXOID:     nil,
 		Timestamp:  uint64(time.Now().Unix()),
@@ -133,7 +133,7 @@ func (tx *Tx) IsCoinbase() bool {
 	return tx.SellerHash == nil && tx.UTXOID == nil
 }
 
-func NewTransaction(srcWallet *wallet.Wallet, destinationAddr string, itemHash []byte, basePrice uint64, chain *BlockChain) (*Tx, error) {
+func NewTransaction(srcWallet *wallet.Wallet, destinationAddr string, itemHash []byte, amount uint64, chain *BlockChain) (*Tx, error) {
 	// fetch last transaction the item was a part of
 	lastBlockWithItem, txIndex, err := chain.LastBlockWithItem(itemHash)
 	if err != nil {
@@ -159,7 +159,7 @@ func NewTransaction(srcWallet *wallet.Wallet, destinationAddr string, itemHash [
 		ItemHash:   itemHash,
 		SellerHash: sellerPubKeyHash,
 		BuyerHash:  buyerPubKeyHash,
-		Amount:     basePrice,
+		Amount:     amount,
 		UTXOID:     lastTxWithItem.TxID,
 		Timestamp:  uint64(time.Now().Unix()),
 	}

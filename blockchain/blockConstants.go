@@ -7,5 +7,5 @@ const (
 	LAST_HASH            = "lh"
 	GENESIS_STRING       = "BBC News (Thursday, March 10, 2022 1:33:39 PM) - Ukraine war: No progress on ceasefire after Kyiv-Moscow talks"
 	GENESIS_TIMESTAMP    = 1646919219
-	MINED_TO_SPEND_RATIO = 2 // mine 3 blocks to add 1 coinbase transaction
+	MINED_TO_SPEND_RATIO = 1 // mine 'n' blocks to add 1 coinbase transaction
 )
