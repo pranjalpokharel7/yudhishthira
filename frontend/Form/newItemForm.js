@@ -2,15 +2,16 @@
 document.getElementById("transfer-form").addEventListener("submit", (e) => {
     e.preventDefault();
     let data = {
-        destination: e.target[0].value + "",
-        item_hash: e.target[1].value + "",
-        amount: +e.target[2].value
+        item_hash: e.target[0].value + "",
+        amount: Number(e.target[1].value)
     }
+    console.log(data);
 
-    postData('http://localhost:8080/transaction/new', data)
+    postData('http://localhost:8080/transaction/coinbase', data)
         .then(data => {
             if (!data.error) {
                 alert("Successful transaction")
+                console.log(data);
                 document.getElementById('b-hash').innerHTML = data.buyerHash;
                 document.getElementById('s-hash').innerHTML = data.sellerHash;
                 document.getElementById('i-hash').innerHTML = data.itemHash;

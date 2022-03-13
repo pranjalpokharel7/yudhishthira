@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"strconv"
@@ -161,12 +162,13 @@ func PostCoinbaseTransaction(wlt *wallet.Wallet, chain *blockchain.BlockChain) g
 			c.AbortWithError(400, err)
 			return
 		}
-		itemHash, err := hex.DecodeString(coinBaseTxData.ItemHash)
-		if err != nil {
-			c.JSON(400, ErrorJSON{ErrorMsg: "bad item hash: could not decode item hex string"})
-			return
-		}
-		coinBaseTx, err := blockchain.CoinBaseTransaction(wlt, itemHash, coinBaseTxData.Amount, chain)
+		itemHash := sha256.Sum256([]byte(coinBaseTxData.ItemHash))
+		// itemHash, err := hex.DecodeString(coinBaseTxData.ItemHash)
+		// if err != nil {
+		// 	c.JSON(400, ErrorJSON{ErrorMsg: "bad item hash: could not decode item hex string"})
+		// 	return
+		// }
+		coinBaseTx, err := blockchain.CoinBaseTransaction(wlt, itemHash[:], coinBaseTxData.Amount, chain)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
 			return
