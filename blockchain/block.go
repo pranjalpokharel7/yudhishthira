@@ -167,7 +167,7 @@ func (blk *Block) MineBlock(chain *BlockChain, wlt *wallet.Wallet) error {
 	blk.Height = lastBlock.Height + 1
 
 	// create function to calculate difficulty later based on txsum?
-	blk.Difficulty = blk.Height%2016 + 1 // block difficulty changes every 2016 blocks, just like bitcoin
+	blk.Difficulty = uint64(blk.Height/2016 + 1) // block difficulty changes every 2016 blocks, just like bitcoin
 	ProofOfWork(blk)
 
 	// add miner address after proof of work is done
