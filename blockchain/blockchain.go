@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"runtime"
 
 	"github.com/dgraph-io/badger"
 	"github.com/pranjalpokharel7/yudhishthira/utility"
@@ -25,7 +26,13 @@ type BlockChainIterator struct {
 
 func InitBlockChain() *BlockChain {
 	var lastHash []byte
-	db, err := badger.Open(badger.DefaultOptions(DB_PATH))
+
+	badgerOpts := badger.DefaultOptions(DB_PATH)
+	os := runtime.GOOS
+	if os == "windows" {
+		badgerOpts.Truncate = true
+	}
+	db, err := badger.Open(badgerOpts)
 	utility.ErrThenPanic(err)
 
 	// to perform read-write operations, use Update
