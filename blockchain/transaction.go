@@ -133,15 +133,22 @@ func (tx *Tx) IsCoinbase() bool {
 	return tx.SellerHash == nil && tx.UTXOID == nil
 }
 
-func NewTransaction(srcWallet *wallet.Wallet, destinationAddr string, itemHash []byte, amount uint64, chain *BlockChain) (*Tx, error) {
-	// fetch last transaction the item was a part of
+func LastTxWithItem(chain *BlockChain, itemHash []byte) (*Tx, error) {
 	lastBlockWithItem, txIndex, err := chain.LastBlockWithItem(itemHash)
 	if err != nil {
 		return nil, err
 	}
 	lastTxWithItem := lastBlockWithItem.TxMerkleTree.LeafNodes[txIndex].Transaction
+	return &lastTxWithItem, nil
+}
 
+func NewTransaction(srcWallet *wallet.Wallet, destinationAddr string, itemHash []byte, amount uint64, chain *BlockChain) (*Tx, error) {
 	// check if the last transaction destination address is the current source address
+	lastTxWithItem, err := LastTxWithItem(chain, itemHash)
+	if err != nil {
+		return nil, err
+	}
+
 	sellerPubKeyHash, err := wallet.PubKeyHashFromAddress(string(srcWallet.Address))
 	if err != nil {
 		return nil, err
