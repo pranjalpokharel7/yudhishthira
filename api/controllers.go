@@ -1,6 +1,9 @@
 package api
 
 import (
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -10,22 +13,6 @@ import (
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
 	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
-
-type ErrorJSON struct {
-	ErrorMsg string `json:"error"`
-}
-
-// TODO: add binding validation
-type NewTxFormInput struct {
-	Destination string `json:"destination" binding:"required"`
-	ItemHash    string `json:"item_hash" binding:"required"`
-	Amount      uint64 `json:"amount" binding:"required"`
-}
-
-type CoinBaseTxFormInput struct {
-	ItemHash string `json:"item_hash" binding:"required"`
-	Amount   uint64 `json:"amount" binding:"required"`
-}
 
 // GET Requests
 
@@ -43,10 +30,12 @@ func GetLastBlockWithItemResponse(chain *blockchain.BlockChain) gin.HandlerFunc 
 		itemHash, err := hex.DecodeString(itemHashString)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "provided hash can not be decoded"})
+			return
 		}
 		lastBlock, _, err := chain.LastBlockWithItem(itemHash)
 		if err != nil {
 			c.JSON(404, ErrorJSON{ErrorMsg: "item with hash not found"})
+			return
 		}
 		c.JSON(200, lastBlock)
 	}
@@ -58,9 +47,11 @@ func GetLastNBlocksResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
 		n, err := strconv.Atoi(c.Param("n"))
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "invalid height provided: can not be parsed as integer"})
+			return
 		}
 		if n < 0 {
 			c.JSON(400, ErrorJSON{ErrorMsg: "negative height provided: block height can only be positive"})
+			return
 		}
 		lastNBlocks := chain.GetLastNBlocks(uint64(n))
 		c.JSON(200, lastNBlocks)
@@ -74,9 +65,11 @@ func GetLastNTxsResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
 		n, err := strconv.Atoi(c.Param("n"))
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "invalid number provided: can not be parsed as integer"})
+			return
 		}
 		if n < 0 {
 			c.JSON(400, ErrorJSON{ErrorMsg: "negative number provided: tx count can only be positive"})
+			return
 		}
 		lastNBlocks := chain.GetLastNTxs(uint64(n))
 		c.JSON(200, lastNBlocks)
@@ -91,6 +84,7 @@ func GetItemTransactionHistoryResponse(chain *blockchain.BlockChain) gin.Handler
 		itemHash, err := hex.DecodeString(itemHashString)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "provided hash can not be decoded"})
+			return
 		}
 		itemTxHistory := chain.TxsIncludingItem(itemHash)
 		c.JSON(200, itemTxHistory)
@@ -104,10 +98,12 @@ func GetWalletInfoResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
 		coinbaseTxs, err := chain.WalletCoinBaseTxs(walletAddress)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+			return
 		}
 		minedBlocks, err := chain.WalletMinedBlocks(walletAddress)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+			return
 		}
 		walletInfo := map[string]interface{}{
 			"coinbase_txs": coinbaseTxs,
@@ -124,6 +120,44 @@ func GetWalletOwnedItemsResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
 		ownedItems, err := chain.WalletOwnedItems(walletAddress)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+			return
+		}
+		walletInfo := map[string]interface{}{
+			"owned_items": ownedItems,
+		}
+		c.JSON(200, walletInfo)
+	}
+	return fn
+}
+
+func GetMyWalletInfoResponse(wlt *wallet.Wallet, chain *blockchain.BlockChain) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		coinbaseTxs, err := chain.WalletOwnedItems(string(wlt.Address))
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+			return
+		}
+		minedBlocks, err := chain.WalletMinedBlocks(string(wlt.Address))
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+			return
+		}
+		walletInfo := map[string]interface{}{
+			"coinbase_txs": coinbaseTxs,
+			"mined_blocks": minedBlocks,
+		}
+		c.JSON(200, walletInfo)
+	}
+	return fn
+}
+
+// TODO: make a generalized function for this
+func GetMyWalletOwnedItemsResponse(wlt *wallet.Wallet, chain *blockchain.BlockChain) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		ownedItems, err := chain.WalletOwnedItems(string(wlt.Address))
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
+			return
 		}
 		walletInfo := map[string]interface{}{
 			"owned_items": ownedItems,
@@ -174,6 +208,67 @@ func PostCoinbaseTransaction(wlt *wallet.Wallet, chain *blockchain.BlockChain) g
 			return
 		}
 		c.JSON(200, coinBaseTx)
+	}
+	return fn
+}
+
+func VerifyToken() gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		signedTokenData := TokenVerifyModel{}
+		if err := c.BindJSON(&signedTokenData); err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+
+		hashedOriginalToken := sha256.Sum256([]byte(signedTokenData.OriginalToken))
+		signedToken, err := hex.DecodeString(signedTokenData.SignedToken)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
+			return
+		}
+
+		pubKeyHex := signedTokenData.PublicKey
+		pubKeyBytes, err := hex.DecodeString(pubKeyHex)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
+			return
+		}
+		publicKey, err := wallet.BytesToPublicKey(pubKeyBytes)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
+			return
+		}
+
+		err = rsa.VerifyPSS(publicKey, crypto.SHA256, hashedOriginalToken[:], signedToken, nil)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
+			return
+		}
+		verifiedTokenJSON := map[string]interface{}{
+			"verified": true,
+		}
+		c.JSON(200, verifiedTokenJSON)
+	}
+	return fn
+}
+
+func SignToken(wlt *wallet.Wallet) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		tokenData := TokenSignModel{}
+		if err := c.BindJSON(&tokenData); err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+		hashedToken := sha256.Sum256([]byte(tokenData.Token))
+		signedToken, err := rsa.SignPSS(rand.Reader, &wlt.PrivateKey, crypto.SHA256, hashedToken[:], nil)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
+			return
+		}
+		signedTokenJSON := map[string]interface{}{
+			"signed_token": hex.EncodeToString(signedToken),
+		}
+		c.JSON(200, signedTokenJSON)
 	}
 	return fn
 }
