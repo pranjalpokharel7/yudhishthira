@@ -4,16 +4,19 @@ import (
 	"bytes"
 	"encoding/gob"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net"
+	"os"
 	"sync"
 
 	//internal inports
 
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
+	"github.com/pranjalpokharel7/yudhishthira/utility"
 )
 
 // TODO: test everything
@@ -30,8 +33,9 @@ const (
 )
 
 var (
-	knownNodes  = []string{"localhost:3000"} // list of all the knownNodes
-	nodeAddress string                       // address of this node
+	// set initial knownNode
+	knownNodes  = []string{} // list of all the knownNodes
+	nodeAddress string       // address of this node
 
 	// here string is the transaction id and it point to the actual transaction
 	memoryPool      = make(map[string]blockchain.Tx)
@@ -289,6 +293,19 @@ func HandleBlock(request []byte, bChain *blockchain.BlockChain) {
 
 	// TODO: Implement Add block to blockchain method
 	fmt.Printf("Received a block of hash: %x\n", payload.Block.BlockHash)
+
+	blockHashes := bChain.GetBlockHashesFromHeight(payload.Block.Height - 1)
+
+	if len(blockHashes) != 0 {
+		lastHash := blockHashes[len(blockHashes)-1]
+
+		if !bytes.Equal(payload.Block.PreviousHash, lastHash) {
+			log.Printf("Chain of this node invalid at height: %d", payload.Block.Height-1)
+			os.Exit(69)
+			blocksInTransit = [][]byte{} // empty blocks in transit
+		}
+	}
+
 	bChain.AddBlock(&payload.Block)
 
 	if len(blocksInTransit) > 0 {
@@ -410,11 +427,10 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 		}
 	} else {
 		// TODO: Fix the number of nodes to mine
+		// TODO Mine tx
 		if len(memoryPool) >= 2 {
-			//TODO: Mine Transaction
-			// MineTx(tx)
-		}
 
+		}
 	}
 }
 
@@ -558,10 +574,32 @@ func GobEncode(data interface{}) []byte {
 	return buff.Bytes()
 }
 
-func StartServer(nodeId string, minerAddress string) {
-	nodeAddress = fmt.Sprintf("localhost:%s", nodeId)
+func readKnownNodesFromJSON() {
+	// create known nodes json
+	knownNodesByte, err := os.ReadFile("./p2p/known_nodes.json")
+	utility.ErrThenLogPanic(err)
+
+	var payload map[string]interface{}
+
+	knownNodes = []string{}
+
+	err = json.Unmarshal(knownNodesByte, &payload)
+	utility.ErrThenLogPanic(err)
+
+	knownNodesList := payload["nodes"].([]interface{})
+
+	for _, node := range knownNodesList {
+		knownNodes = append(knownNodes, node.(string))
+	}
+}
+
+func StartServer(nodeId string) {
+	nodeAddress = fmt.Sprintf("%s:%s", utility.GetNodeAddress(), nodeId)
 	// minerAddress = minerAddress
 	ln, err := net.Listen(protocol, nodeAddress)
+
+	readKnownNodesFromJSON()
+
 	if err != nil {
 		log.Panic(err)
 	}
@@ -573,11 +611,26 @@ func StartServer(nodeId string, minerAddress string) {
 	chain := &blockchain.BlockChain{}
 	chain = blockchain.InitBlockChain()
 
+	// TODO: this is just for testing phase fix later
+	// TODO: just loop thoughout the known nodes and ask for version
 	if nodeAddress != knownNodes[0] {
-		SendVersion(knownNodes[0], chain)
+		for _, node := range knownNodes {
+			if node != nodeAddress {
+				SendVersion(node, chain)
+			}
+		}
 	} else {
-		// chain = blockchain.InitBlockChain()
 		b := blockchain.CreateBlock()
+		tx := []blockchain.Tx{
+			{
+				Amount: 69,
+			},
+			{
+				Amount: 6969,
+			},
+		}
+		b.AddTransactionsToBlock(tx)
+		chain.AddBlock(b)
 		if chain.GetHeight() == 0 {
 			chain.AddBlock(b)
 			chain.AddBlock(b)
@@ -586,6 +639,16 @@ func StartServer(nodeId string, minerAddress string) {
 			chain.AddBlock(b)
 		}
 	}
+
+	// if nodeAddress != knownNodes[0] {
+	// 	SendVersion(knownNodes[0], chain)
+	// } else {
+	// 	// chain = blockchain.InitBlockChain()
+	//
+	// }
+
+	chain.PrintChain()
+
 	for {
 		conn, err := ln.Accept()
 		if err != nil {

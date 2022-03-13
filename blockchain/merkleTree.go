@@ -46,8 +46,10 @@ func CreateMerkleTree(transactions []Tx, tree *MerkleTree) (*MerkleTree, error) 
 
 	// add to the roots of the merkle tree
 	for _, tx := range transactions {
+		// get hash of the transaction
+		hashTx, _ := tx.CalculateTxHash()
 		node := Node{
-			HashValue:   tx.TxID,
+			HashValue:   hashTx,
 			parent:      nil,
 			right:       nil,
 			left:        nil,
@@ -65,10 +67,12 @@ func CreateMerkleTree(transactions []Tx, tree *MerkleTree) (*MerkleTree, error) 
 
 func AddDataMerkleTree(tree *MerkleTree, transactions ...Tx) (*MerkleTree, error) {
 	for _, tx := range transactions {
+		// get hash of the transaction
+		hashTx, _ := tx.CalculateTxHash()
 		node := &Node{
 			Transaction: tx,
 			parent:      nil,
-			HashValue:   tx.TxID,
+			HashValue:   hashTx,
 		}
 		tree.LeafNodes = append(tree.LeafNodes, node)
 	}
@@ -98,6 +102,7 @@ func createMerkleTreeIntermediate(nodes []*Node, tree *MerkleTree) (*Node, error
 			right = i
 		}
 
+		// get the hash of the intermediate node from left and right node
 		contentHash := append(nodes[left].HashValue, nodes[right].HashValue...)
 		hash := tree.hashStrategy(contentHash)
 
@@ -142,7 +147,18 @@ func (tree *MerkleTree) VerifyTransaction(tx Tx) bool {
 
 	for i := 0; i < size; i++ {
 		node := tree.LeafNodes[i]
-		if bytes.Equal(tx.TxID, node.HashValue) { // TODO: might re-calculate transaction hash here?
+		var hashTx []byte
+
+		//TODO: Check this
+		if tx.TxID == nil {
+			hashTx = tx.TxID
+		} else {
+			var err error
+			hashTx, err = tx.CalculateTxHash()
+
+			utility.ErrThenLogFatal(err)
+		}
+		if bytes.Equal(hashTx, node.HashValue) {
 			parentNode := node.parent
 			for parentNode != nil {
 				rightHash := parentNode.right.HashValue
