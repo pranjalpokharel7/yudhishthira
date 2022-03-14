@@ -209,6 +209,15 @@ func PostNewTransaction(wlt *wallet.Wallet, chain *blockchain.BlockChain) gin.Ha
 			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
 			return
 		}
+		block := blockchain.CreateBlock()
+		var txPool []blockchain.Tx
+		txPool = append(txPool, *newTx)
+		block.AddTransactionsToBlock(txPool)
+		block.MineBlock(chain, wlt)
+
+		// fmt.Println(block)
+		chain.AddBlock(block)
+
 		c.JSON(200, newTx)
 	}
 	return fn
@@ -222,16 +231,22 @@ func PostCoinbaseTransaction(wlt *wallet.Wallet, chain *blockchain.BlockChain) g
 			return
 		}
 		itemHash := sha256.Sum256([]byte(coinBaseTxData.ItemHash))
-		// itemHash, err := hex.DecodeString(coinBaseTxData.ItemHash)
-		// if err != nil {
-		// 	c.JSON(400, ErrorJSON{ErrorMsg: "bad item hash: could not decode item hex string"})
-		// 	return
-		// }
 		coinBaseTx, err := blockchain.CoinBaseTransaction(wlt, itemHash[:], coinBaseTxData.Amount, chain)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
 			return
 		}
+
+		// TODO: implement transaction pool later, then remove this automatic mining
+		block := blockchain.CreateBlock()
+		var txPool []blockchain.Tx
+		txPool = append(txPool, *coinBaseTx)
+		block.AddTransactionsToBlock(txPool)
+		block.MineBlock(chain, wlt)
+
+		// fmt.Println(block)
+		chain.AddBlock(block)
+
 		c.JSON(200, coinBaseTx)
 	}
 	return fn
@@ -302,6 +317,27 @@ func CalculateItemHash() gin.HandlerFunc {
 			"item_hash": hex.EncodeToString(itemHash[:]),
 		}
 		c.JSON(200, itemHashJSON)
+	}
+	return fn
+}
+
+func GetItemOwner(chain *blockchain.BlockChain) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		itemHashString := c.Param("itemhash")
+		itemHash, err := hex.DecodeString(itemHashString)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "provided hash can not be decoded"})
+			return
+		}
+		lastTxWithItem, err := blockchain.LastTxWithItem(chain, itemHash)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "provided hash can not be decoded"})
+			return
+		}
+		txOwnerInfo := map[string]interface{}{
+			"item_owner": lastTxWithItem.BuyerHash,
+		}
+		c.JSON(200, txOwnerInfo)
 	}
 	return fn
 }
