@@ -24,6 +24,7 @@ func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain) {
 	// item endpoint
 	router.GET("/item/history/:itemhash", GetItemTransactionHistoryResponse(chain))
 	router.GET("/item/last-block/:itemhash", GetLastBlockWithItemResponse(chain))
+	router.GET("/item/calculate-hash/:itemid", CalculateItemHash())
 	router.GET("/item/owner/:itemhash", GetItemOwner(chain))
 
 	// general wallet endpoint
@@ -41,8 +42,8 @@ func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain) {
 	router.POST("/transaction/coinbase", PostCoinbaseTransaction(wlt, chain))
 
 	// token verification endpoint
+	router.GET("/token/sign/:token", SignToken(wlt))
 	router.POST("/token/verify", VerifyToken())
-	router.POST("/token/sign", SignToken(wlt))
 
 	router.Run(PORT)
 }
