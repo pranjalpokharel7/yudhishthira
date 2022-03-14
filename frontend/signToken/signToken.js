@@ -13,7 +13,7 @@ document.getElementById('token-form').addEventListener("submit", e => {
 		})
 		.then(json => {
 			console.log(json);
-			itemHashOutput.innerText = json["signed_token"];
+			signedTokenOutput.innerText = json["signed_token"];
 			
 		})
 })
