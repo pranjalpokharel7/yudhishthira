@@ -5,30 +5,38 @@
 	<meta charset="UTF-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Document</title>
+	<title>Object Hash</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
 </head>
 
 <body>
-	<div>
-		<form id="hashForm">
-			<div>
-				<label for="item_id">Item ID</label>
-				<input type="text" name="item_id" required="true">
-			</div>
-			<div>
-				<label for="item_id">Item Hash</label>
-				<input type="text" name="item_hash">
-			</div>
-			<button type="submit">Verify Hash</button>
-		</form>
-	</div>
-	<div>
-		The calculated object hash is :
-		<p id="objectHash"></p>
-	</div>
-	<div>
-		Verification status after checking against input hash :
-		<p id="verifiedHash"></p>
+	<header>
+		<div class="search">
+			<form id="hashForm">
+				<div class="search-field">
+					<label for="item_id">Item ID </label>
+					<input type="text" name="item_id" required="true" >
+				</div>
+				<div class="search-field">
+					<label for="item_id">Item Hash</label>
+					<input type="text" name="item_hash">
+				</div>
+				<button type="submit" class="btn">Verify Hash</button>
+			</form>
+		</div>
+	</header>
+	<div class="op">
+		<div>
+			The calculated object hash is :
+			<p id="objectHash"></p>
+		</div>
+		<div>
+			Verification status after checking against input hash :
+			<p id="verifiedHash"></p>
+		</div>
 	</div>
 </body>
 <script src="./objectHash.js"></script>
