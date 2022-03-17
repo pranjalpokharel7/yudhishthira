@@ -34,7 +34,7 @@ const (
 
 var (
 	// set initial knownNode
-	knownNodes  = []string{} // list of all the knownNodes
+	KnownNodes  = []string{} // list of all the knownNodes
 	nodeAddress string       // address of this node
 
 	// here string is the transaction id and it point to the actual transaction
@@ -132,13 +132,13 @@ func sendData(addr string, data []byte) {
 		fmt.Printf("Node %s is not available\n", addr)
 		var updatedNodes []string
 		// if the address is not available, remove that node
-		for _, node := range knownNodes {
+		for _, node := range KnownNodes {
 			if node != addr {
 				updatedNodes = append(updatedNodes, node)
 			}
 		}
 
-		knownNodes = updatedNodes
+		KnownNodes = updatedNodes
 
 		return
 	}
@@ -187,7 +187,7 @@ func SendBlock(addr string, block *blockchain.Block) {
 }
 
 func SendAddress(addr string, block *blockchain.Block) {
-	address := Address{AddrList: knownNodes}
+	address := Address{AddrList: KnownNodes}
 
 	info := append(CommandToBytes("address"), GobEncode(address)...)
 
@@ -207,8 +207,8 @@ func sendGetData(addr string, kind MESSAGE_TYPE, id []byte) {
 	sendData(addr, data)
 }
 
-// send a particular transaction to the given address
-func sendTx(addr string, tx blockchain.Tx) {
+// send transaction to the given node address
+func SendTx(addr string, tx blockchain.Tx) {
 	serializedData, err := tx.SerializeTxToGOB()
 
 	if err != nil {
@@ -220,7 +220,7 @@ func sendTx(addr string, tx blockchain.Tx) {
 		Transaction: serializedData,
 	})
 
-	data = append(CommandToBytes("gettx"), data...)
+	data = append(CommandToBytes("tx"), data...)
 	sendData(addr, data)
 }
 
@@ -271,9 +271,9 @@ func HandleAddress(request []byte, chain *blockchain.BlockChain) {
 		log.Panic(err)
 	}
 
-	knownNodes = append(knownNodes, payload.AddrList...)
+	KnownNodes = append(KnownNodes, payload.AddrList...)
 
-	for _, node := range knownNodes {
+	for _, node := range KnownNodes {
 		// request blocks with all the nodes that we have recieved
 		SendGetBlocks(node, chain)
 	}
@@ -361,7 +361,7 @@ func HandleGetData(request []byte, chain *blockchain.BlockChain) {
 		txId := hex.EncodeToString(payload.Data)
 		tx := memoryPool[txId]
 
-		sendTx(payload.AddrFrom, tx)
+		SendTx(payload.AddrFrom, tx)
 	}
 }
 
@@ -394,8 +394,8 @@ func HandleVersion(request []byte, chain *blockchain.BlockChain) {
 	}
 
 	// if nodes are not known add them to known nodes
-	if !contains(knownNodes, payload.AddressFrom) {
-		knownNodes = append(knownNodes, payload.AddressFrom)
+	if !contains(KnownNodes, payload.AddressFrom) {
+		KnownNodes = append(KnownNodes, payload.AddressFrom)
 	}
 }
 
@@ -419,8 +419,8 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 	txHash, err := tx.CalculateTxHash()
 	memoryPool[hex.EncodeToString(txHash)] = *tx
 
-	if nodeAddress == knownNodes[0] {
-		for _, node := range knownNodes {
+	if nodeAddress == KnownNodes[0] {
+		for _, node := range KnownNodes {
 			if node != nodeAddress && node != payload.AddrFrom {
 				sendInv(node, TX_TYPE, [][]byte{txHash})
 			}
@@ -527,8 +527,8 @@ func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 		HandleGetData(req, chain)
 		break
 
-	case "gettx":
-		fmt.Println("Sending Transaction")
+	case "tx":
+		fmt.Println("Receiving a Transaction")
 		HandleTx(req, chain)
 		break
 
@@ -581,7 +581,7 @@ func readKnownNodesFromJSON() {
 
 	var payload map[string]interface{}
 
-	knownNodes = []string{}
+	KnownNodes = []string{}
 
 	err = json.Unmarshal(knownNodesByte, &payload)
 	utility.ErrThenLogPanic(err)
@@ -589,7 +589,7 @@ func readKnownNodesFromJSON() {
 	knownNodesList := payload["nodes"].([]interface{})
 
 	for _, node := range knownNodesList {
-		knownNodes = append(knownNodes, node.(string))
+		KnownNodes = append(KnownNodes, node.(string))
 	}
 }
 
@@ -607,14 +607,14 @@ func StartServer(nodeId string, chain *blockchain.BlockChain) {
 
 	// TODO: this is just for testing phase fix later
 	// TODO: just loop thoughout the known nodes and ask for version
-	if nodeAddress != knownNodes[0] {
-		for _, node := range knownNodes {
+	if nodeAddress != KnownNodes[0] {
+		for _, node := range KnownNodes {
 			if node != nodeAddress {
 				SendVersion(node, chain)
 			}
 		}
 	}
-
+	chain.PrintChain()
 	// if nodeAddress != knownNodes[0] {
 	// 	SendVersion(knownNodes[0], chain)
 	// } else {
