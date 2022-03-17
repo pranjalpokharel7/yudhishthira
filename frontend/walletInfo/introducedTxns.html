@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Introduced Items</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="actions">
+        <a href="./introducedTxns.html" class="active">Items introduced</a>
+        <a href="./minedTxns.html">My Mined Transactions</a>
+    </div>
+
+    <div class="txTable">
+        <table class="table">
+            <tbody id="latestBlockTable">
+                <tr>
+                    <th>Transaction ID</th>
+                    <th>Item Hash</th>
+                    <th>Amount</th>
+                    <th>Timestamp</th>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <script src="./introducedTxns.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+</head>
+
+
+<body>
+    <div class="actions">
+        <h2>Decent Bazaar Blockchain</h2>
+    </div>
+    <div class="txTable">
+        <table class="table">
+            <tbody>
+                <tr>
+                    <td>Address : <p id="address"></p></td>
+                </tr>
+                <tr>
+                    <td>Public Key Hash : <p id="pkhash"></p></td>
+                </tr>
+                <tr>
+                    <td>Public Key : <p id="pk"></p></td>
+                </tr>
+            </tbody>
+        </table>
+
+    <div class="txTable">
+        <table class="table">
+            <tbody id="latestBlockTable">
+                <tr>
+                    <th>
+                        Actions
+                    </th>
+                </tr>
+                <tr>
+                    <td>
+                        <a href="./blockchainVisualizer/latestBlock.html" target="_blank"
+                            rel="noopener noreferrer">BlockChain
+                            Visualizer</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <a href="./Form/newItemForm.html" target="_blank" rel="noopener noreferrer">Add new item</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <a href="./Form/transferForm.html" target="_blank" rel="noopener noreferrer">Transfer Item</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <a href="./itemHistory/itemHistory.html" target="_blank" rel="noopener noreferrer">See Item
+                            History</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <a href="walletInfo/minedTxns.html" target="_blank" rel="noopener noreferrer">See My Mined
+                            Transactions</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <a href="walletInfo/introducedTxns.html" target="_blank" rel="noopener noreferrer">See My Added
+                            Items</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <a href="objectHash/objectHash.html" target="_blank" rel="noopener noreferrer">Verify Object Hash</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <a href="signToken/signToken.html" target="_blank" rel="noopener noreferrer">Sign Verification Token</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <script src="./main.js"></script>
+</body>
+
+</html>
