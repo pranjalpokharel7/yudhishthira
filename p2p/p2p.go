@@ -17,6 +17,7 @@ import (
 
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
 	"github.com/pranjalpokharel7/yudhishthira/utility"
+	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
 
 // TODO: test everything
@@ -399,7 +400,7 @@ func HandleVersion(request []byte, chain *blockchain.BlockChain) {
 	}
 }
 
-func HandleTx(request []byte, chain *blockchain.BlockChain) {
+func HandleTx(request []byte, chain *blockchain.BlockChain, wlt *wallet.Wallet) {
 	var buff bytes.Buffer
 	var payload Tx
 
@@ -429,7 +430,16 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 		// TODO: Fix the number of nodes to mine
 		// TODO Mine tx
 		if len(memoryPool) >= 2 {
+			txPool := []blockchain.Tx{}
 
+			for _, tx := range memoryPool {
+				txPool = append(txPool, tx)
+			}
+
+			block := blockchain.CreateBlock()
+			err := block.MineBlock(chain, wlt)
+			utility.ErrThenLogPanic(err)
+			chain.AddBlock(block)
 		}
 	}
 }
@@ -496,7 +506,7 @@ func HandleInv(request []byte) {
 
 }
 
-func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
+func HandleConnection(conn net.Conn, chain *blockchain.BlockChain, wlt *wallet.Wallet) {
 	// Reader is interface with read method
 	req, err := ioutil.ReadAll(conn)
 
@@ -529,7 +539,7 @@ func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 
 	case "tx":
 		fmt.Println("Receiving a Transaction")
-		HandleTx(req, chain)
+		HandleTx(req, chain, wlt)
 		break
 
 	case "address":
@@ -593,7 +603,7 @@ func readKnownNodesFromJSON() {
 	}
 }
 
-func StartServer(nodeId string, chain *blockchain.BlockChain) {
+func StartServer(nodeId string, chain *blockchain.BlockChain, wlt *wallet.Wallet) {
 	nodeAddress = fmt.Sprintf("%s:%s", utility.GetNodeAddress(), nodeId)
 	// minerAddress = minerAddress
 	ln, err := net.Listen(protocol, nodeAddress)
@@ -627,7 +637,7 @@ func StartServer(nodeId string, chain *blockchain.BlockChain) {
 		if err != nil {
 			log.Panic(err)
 		}
-		go HandleConnection(conn, chain)
+		go HandleConnection(conn, chain, wlt)
 
 	}
 }

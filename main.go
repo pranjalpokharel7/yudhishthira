@@ -40,11 +40,11 @@ func main() {
 
 	// cli.RunCLI()
 
-	block := blockchain.CreateBlock()
-	block.MineBlock(chain, &wlt1)
+	// block := blockchain.CreateBlock()
+	// block.MineBlock(chain, &wlt1)
 
-	chain.AddBlock(block)
+	// chain.AddBlock(block)
 	chain.PrintChain()
 
-	api.StartServer(&wlt1, chain)
+	api.StartServer(&wlt0, chain)
 }

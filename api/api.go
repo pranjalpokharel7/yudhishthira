@@ -7,13 +7,13 @@ import (
 	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
 
-const PORT = ":8080"
+const PORT = ":8081"
 
 func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain) {
 	// uncomment below line for release mode API
 	// gin.SetMode(gin.ReleaseMode)
 
-	go p2p.StartServer("3000", chain)
+	go p2p.StartServer("6969", chain, wlt)
 	router := gin.Default()
 
 	// middlewares
