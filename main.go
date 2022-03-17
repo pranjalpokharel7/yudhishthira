@@ -5,8 +5,6 @@ import (
 
 	"github.com/pranjalpokharel7/yudhishthira/api"
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
-	"github.com/pranjalpokharel7/yudhishthira/cli"
-	"github.com/pranjalpokharel7/yudhishthira/p2p"
 	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
 
@@ -14,18 +12,18 @@ import (
 
 func main() {
 	fmt.Println("This is where it begins...")
-	// var w wallet.Wallet
-	// w.GenerateKeyPair()
-	// err := w.GenerateAddress()
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// pubKeyBytes, _ := wallet.PublicKeyToBytes(&w.PublicKey)
-	// fmt.Printf("Wallet Public Key: %x\n", pubKeyBytes)
-	// fmt.Printf("Wallet Address: %s\n", w.Address)
-
-	p2p.StartServer("3000")
-	cli.RunCLI()
+	var w wallet.Wallet
+	w.GenerateKeyPair()
+	err := w.GenerateAddress()
+	if err != nil {
+		panic(err)
+	}
+	pubKeyBytes, _ := wallet.PublicKeyToBytes(&w.PublicKey)
+	fmt.Printf("Wallet Public Key: %x\n", pubKeyBytes)
+	fmt.Printf("Wallet Address: %s\n", w.Address)
+	w.SaveWalletToFile("./k0.keystore")
+	// p2p.StartServer("3000")
+	// cli.RunCLI()
 
 	chain := blockchain.InitBlockChain()
 
@@ -42,11 +40,11 @@ func main() {
 
 	// cli.RunCLI()
 
-	// block := blockchain.CreateBlock()
-	// block.MineBlock(chain, &wlt)
+	block := blockchain.CreateBlock()
+	block.MineBlock(chain, &wlt1)
 
-	// chain.AddBlock(block)
-	// chain.PrintChain()
+	chain.AddBlock(block)
+	chain.PrintChain()
 
 	api.StartServer(&wlt1, chain)
 }

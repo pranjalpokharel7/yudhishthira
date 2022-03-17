@@ -593,7 +593,7 @@ func readKnownNodesFromJSON() {
 	}
 }
 
-func StartServer(nodeId string) {
+func StartServer(nodeId string, chain *blockchain.BlockChain) {
 	nodeAddress = fmt.Sprintf("%s:%s", utility.GetNodeAddress(), nodeId)
 	// minerAddress = minerAddress
 	ln, err := net.Listen(protocol, nodeAddress)
@@ -605,12 +605,6 @@ func StartServer(nodeId string) {
 	}
 	defer ln.Close()
 
-	// defer chain.Database.Close()
-	// go CloseDB(chain)
-
-	chain := &blockchain.BlockChain{}
-	chain = blockchain.InitBlockChain()
-
 	// TODO: this is just for testing phase fix later
 	// TODO: just loop thoughout the known nodes and ask for version
 	if nodeAddress != knownNodes[0] {
@@ -618,25 +612,6 @@ func StartServer(nodeId string) {
 			if node != nodeAddress {
 				SendVersion(node, chain)
 			}
-		}
-	} else {
-		b := blockchain.CreateBlock()
-		tx := []blockchain.Tx{
-			{
-				Amount: 69,
-			},
-			{
-				Amount: 6969,
-			},
-		}
-		b.AddTransactionsToBlock(tx)
-		chain.AddBlock(b)
-		if chain.GetHeight() == 0 {
-			chain.AddBlock(b)
-			chain.AddBlock(b)
-			chain.AddBlock(b)
-			chain.AddBlock(b)
-			chain.AddBlock(b)
 		}
 	}
 
@@ -646,8 +621,6 @@ func StartServer(nodeId string) {
 	// 	// chain = blockchain.InitBlockChain()
 	//
 	// }
-
-	chain.PrintChain()
 
 	for {
 		conn, err := ln.Accept()
