@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"runtime"
 
 	"github.com/dgraph-io/badger"
 	"github.com/pranjalpokharel7/yudhishthira/utility"
@@ -14,7 +15,6 @@ import (
 // technically block chain is just a chain of blocks
 // TODO: single int field to determine whether the chain is main chain or test chain
 type BlockChain struct {
-	// Difficulty uint32 // --. moved to proof since it seems relevant there
 	Database *badger.DB
 	LastHash []byte
 }
@@ -26,19 +26,19 @@ type BlockChainIterator struct {
 
 func InitBlockChain() *BlockChain {
 	var lastHash []byte
-	db, err := badger.Open(badger.DefaultOptions(DB_PATH))
+
+	badgerOpts := badger.DefaultOptions(DB_PATH)
+	os := runtime.GOOS
+	if os == "windows" {
+		badgerOpts.Truncate = true
+	}
+	db, err := badger.Open(badgerOpts)
 	utility.ErrThenPanic(err)
 
 	// to perform read-write operations, use Update
 	err = db.Update(func(txn *badger.Txn) error {
 		if _, err := txn.Get([]byte(LAST_HASH)); err == badger.ErrKeyNotFound {
-			// no blocks in the blockchain yet, need to add genesis block
-			// TODO: separate this into a different function, since we need to run this just once in production
-
 			genesisBlock := CreateGenesisBlock()
-			// err = ProofOfWork(genesisBlock, DIFFICULTY)
-			// utility.ErrThenPanic(err)
-
 			genesisSerialized, err := genesisBlock.SerializeBlockToGOB()
 			utility.ErrThenPanic(err)
 
@@ -161,6 +161,27 @@ func (blockchain *BlockChain) GetLastNBlocks(n uint64) []*Block {
 	}
 
 	return lastNBlocks
+}
+
+func (blockchain *BlockChain) GetLastNTxs(n uint64) []*Tx {
+	var lastNTxs []*Tx
+	var txCount uint64
+
+	iter := BlockChainIterator{
+		CurrentHash: blockchain.LastHash,
+		Database:    blockchain.Database,
+	}
+
+	for block := iter.GetBlockAndIter(); txCount <= n && block != nil; block = iter.GetBlockAndIter() {
+		if block.TxMerkleTree != nil {
+			for _, txNode := range block.TxMerkleTree.LeafNodes {
+				lastNTxs = append(lastNTxs, &txNode.Transaction)
+				txCount += 1
+			}
+		}
+	}
+
+	return lastNTxs
 }
 
 func (blockchain *BlockChain) GetBlockHashes(blockHash []byte) [][]byte {
@@ -371,7 +392,16 @@ func HasFundsForCoinbaseTx(walletAddress string, blockchain *BlockChain) (bool, 
 		return false, err
 	}
 
-	hasSufficientFunds := len(minedBlocks) > MINED_TO_SPEND_RATIO*len(coinbaseTxsDone)
+	emptyBlocksMined := 0
+	for _, minedBlock := range minedBlocks {
+		if minedBlock.IsEmpty() {
+			emptyBlocksMined++
+		}
+	}
+	nonEmptyBlocksMined := len(minedBlocks) - emptyBlocksMined
+	mineScore := emptyBlocksMined + nonEmptyBlocksMined*MINED_TO_SPEND_RATIO
+
+	hasSufficientFunds := mineScore > 2*MINED_TO_SPEND_RATIO*len(coinbaseTxsDone)
 	return hasSufficientFunds, nil
 }
 

@@ -1,121 +1,21 @@
 package api
 
 import (
-	"encoding/hex"
-	"strconv"
-
 	"github.com/gin-gonic/gin"
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
+	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
-
-type ErrorJSON struct {
-	ErrorMsg string `json:"error"`
-}
 
 const PORT = ":8080"
 
-// GET Requests
+func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain) {
+	// uncomment below line for release mode API
+	// gin.SetMode(gin.ReleaseMode)
 
-func GetLastBlockResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
-	fn := func(c *gin.Context) {
-		lastBlock := chain.LastBlock()
-		c.JSON(200, lastBlock)
-	}
-	return fn
-}
-
-func GetLastBlockWithItemResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
-	fn := func(c *gin.Context) {
-		itemHashString := c.Param("itemhash")
-		itemHash, err := hex.DecodeString(itemHashString)
-		if err != nil {
-			c.JSON(400, ErrorJSON{ErrorMsg: "provided hash can not be decoded"})
-		}
-		lastBlock, _, err := chain.LastBlockWithItem(itemHash)
-		if err != nil {
-			c.JSON(404, ErrorJSON{ErrorMsg: "item with hash not found"})
-		}
-		c.JSON(200, lastBlock)
-	}
-	return fn
-}
-
-func GetLastNBlocksResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
-	fn := func(c *gin.Context) {
-		n, err := strconv.Atoi(c.Param("n"))
-		if err != nil {
-			c.JSON(400, ErrorJSON{ErrorMsg: "invalid height provided: can not be parsed as integer"})
-		}
-		if n < 0 {
-			c.JSON(400, ErrorJSON{ErrorMsg: "negative height provided: block height can only be positive"})
-		}
-		lastNBlocks := chain.GetLastNBlocks(uint64(n))
-		c.JSON(200, lastNBlocks)
-
-	}
-	return fn
-}
-
-func GetItemTransactionHistoryResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
-	fn := func(c *gin.Context) {
-		itemHashString := c.Param("itemhash")
-		itemHash, err := hex.DecodeString(itemHashString)
-		if err != nil {
-			c.JSON(400, ErrorJSON{ErrorMsg: "provided hash can not be decoded"})
-		}
-		itemTxHistory := chain.TxsIncludingItem(itemHash)
-		c.JSON(200, itemTxHistory)
-	}
-	return fn
-}
-
-func GetWalletInfoResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
-	fn := func(c *gin.Context) {
-		walletAddress := c.Param("address")
-		coinbaseTxs, err := chain.WalletCoinBaseTxs(walletAddress)
-		if err != nil {
-			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
-		}
-		minedBlocks, err := chain.WalletMinedBlocks(walletAddress)
-		if err != nil {
-			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
-		}
-		walletInfo := map[string]interface{}{
-			"coinbase_txs": coinbaseTxs,
-			"mined_blocks": minedBlocks,
-		}
-		c.JSON(200, walletInfo)
-	}
-	return fn
-}
-
-func GetWalletOwnedItemsResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
-	fn := func(c *gin.Context) {
-		walletAddress := c.Param("address")
-		ownedItems, err := chain.WalletOwnedItems(walletAddress)
-		if err != nil {
-			c.JSON(400, ErrorJSON{ErrorMsg: "bad address: could not derive public key hash from address"})
-		}
-		walletInfo := map[string]interface{}{
-			"owned_items": ownedItems,
-		}
-		c.JSON(200, walletInfo)
-	}
-	return fn
-}
-
-// POST Requests
-
-func PostNewTransaction(addrFrom string, addrTo string) {
-
-}
-
-func PostCoinbaseTransaction(walletAddress string) {
-
-}
-
-func StartServer(chain *blockchain.BlockChain) {
 	router := gin.Default()
+
+	// middlewares
+	router.Use(CORSMiddleware())
 
 	// block endpoint
 	router.GET("/block/last", GetLastBlockResponse(chain))
@@ -124,14 +24,26 @@ func StartServer(chain *blockchain.BlockChain) {
 	// item endpoint
 	router.GET("/item/history/:itemhash", GetItemTransactionHistoryResponse(chain))
 	router.GET("/item/last-block/:itemhash", GetLastBlockWithItemResponse(chain))
+	router.GET("/item/calculate-hash/:itemid", CalculateItemHash())
+	router.GET("/item/owner/:itemhash", GetItemOwner(chain))
 
-	// wallet endpoint
+	// general wallet endpoint
 	router.GET("/wallet/info/:address", GetWalletInfoResponse(chain))
-	router.GET("/wallet/items/:address", GetWalletOwnedItemsResponse(chain)) // get items currently owned by the wallet address
+	router.GET("/wallet/items/:address", GetWalletOwnedItemsResponse(chain))
 
-	// misc endpoint
-	router.POST("/transaction/new")
-	router.POST("/transaction/coinbase")
+	// personal wallet endpoint, TODO: combine with generalized wallet above
+	router.GET("/my-wallet/address", GetMyWalletAddressResponse(wlt))
+	router.GET("/my-wallet/info", GetMyWalletInfoResponse(wlt, chain))
+	router.GET("/my-wallet/items", GetMyWalletInfoResponse(wlt, chain))
+
+	// transaction endpoint
+	router.GET("/transaction/last/:n", GetLastNTxsResponse(chain))
+	router.POST("/transaction/new", PostNewTransaction(wlt, chain))
+	router.POST("/transaction/coinbase", PostCoinbaseTransaction(wlt, chain))
+
+	// token verification endpoint
+	router.GET("/token/sign/:token", SignToken(wlt))
+	router.POST("/token/verify", VerifyToken())
 
 	router.Run(PORT)
 }
