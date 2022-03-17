@@ -21,10 +21,7 @@ func main() {
 	pubKeyBytes, _ := wallet.PublicKeyToBytes(&w.PublicKey)
 	fmt.Printf("Wallet Public Key: %x\n", pubKeyBytes)
 	fmt.Printf("Wallet Address: %s\n", w.Address)
-	w.SaveWalletToFile("./k0.keystore")
-	// p2p.StartServer("3000")
-	// cli.RunCLI()
-
+	w.SaveWalletToFile("./mykeys.keystore")
 	chain := blockchain.InitBlockChain()
 
 	var wlt1 wallet.Wallet
@@ -40,11 +37,14 @@ func main() {
 
 	// cli.RunCLI()
 
-	// block := blockchain.CreateBlock()
-	// block.MineBlock(chain, &wlt1)
+	block := blockchain.CreateBlock()
+	block.MineBlock(chain, &wlt1)
 
-	// chain.AddBlock(block)
+	size, _ := chain.GetChainHeight()
+	if size < 1 {
+		chain.AddBlock(block)
+	}
 	chain.PrintChain()
 
-	api.StartServer(&wlt0, chain)
+	api.StartServer(&wlt1, chain)
 }

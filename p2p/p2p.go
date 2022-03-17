@@ -427,8 +427,6 @@ func HandleTx(request []byte, chain *blockchain.BlockChain, wlt *wallet.Wallet) 
 			}
 		}
 	} else {
-		// TODO: Fix the number of nodes to mine
-		// TODO Mine tx
 		if len(memoryPool) >= 2 {
 			txPool := []blockchain.Tx{}
 
@@ -440,6 +438,9 @@ func HandleTx(request []byte, chain *blockchain.BlockChain, wlt *wallet.Wallet) 
 			err := block.MineBlock(chain, wlt)
 			utility.ErrThenLogPanic(err)
 			chain.AddBlock(block)
+
+			// empty memory pool
+			memoryPool = map[string]blockchain.Tx{}
 		}
 	}
 }
