@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
@@ -201,24 +200,23 @@ func PostNewTransaction(wlt *wallet.Wallet, chain *blockchain.BlockChain) gin.Ha
 			c.AbortWithError(400, err)
 			return
 		}
-		itemHash, err := hex.DecodeString(strings.Trim(newTxData.ItemHash, "\n"))
-		// if err != nil {
-		// 	c.JSON(400, ErrorJSON{ErrorMsg: "bad item hash: could not decode item hex string"})
-		// 	return
-		// }
+
+		itemHash, err := hex.DecodeString(newTxData.ItemHash)
+		if err != nil {
+			c.JSON(400, ErrorJSON{ErrorMsg: "bad item hash: could not decode item hex string"})
+			return
+		}
 		newTx, err := blockchain.NewTransaction(wlt, newTxData.Destination, itemHash, newTxData.Amount, chain)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
 			return
 		}
-		block := blockchain.CreateBlock()
+
 		var txPool []blockchain.Tx
 		txPool = append(txPool, *newTx)
-		block.AddTransactionsToBlock(txPool)
-		block.MineBlock(chain, wlt)
-
-		// fmt.Println(block)
-		chain.AddBlock(block)
+		for _, nodeAddress := range p2p.KnownNodes {
+			p2p.SendTx(nodeAddress, *newTx)
+		}
 
 		c.JSON(200, newTx)
 	}

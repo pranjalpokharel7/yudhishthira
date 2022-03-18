@@ -435,9 +435,14 @@ func HandleTx(request []byte, chain *blockchain.BlockChain, wlt *wallet.Wallet) 
 			}
 
 			block := blockchain.CreateBlock()
+			block.AddTransactionsToBlock(txPool)
 			err := block.MineBlock(chain, wlt)
 			utility.ErrThenLogPanic(err)
 			chain.AddBlock(block)
+
+			for _, nodes := range KnownNodes {
+				SendBlock(nodes, block)
+			}
 
 			// empty memory pool
 			memoryPool = map[string]blockchain.Tx{}
@@ -626,13 +631,6 @@ func StartServer(nodeId string, chain *blockchain.BlockChain, wlt *wallet.Wallet
 		}
 	}
 	chain.PrintChain()
-	// if nodeAddress != knownNodes[0] {
-	// 	SendVersion(knownNodes[0], chain)
-	// } else {
-	// 	// chain = blockchain.InitBlockChain()
-	//
-	// }
-
 	for {
 		conn, err := ln.Accept()
 		if err != nil {

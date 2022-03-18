@@ -12,17 +12,6 @@ import (
 
 func main() {
 	fmt.Println("This is where it begins...")
-	var w wallet.Wallet
-	w.GenerateKeyPair()
-	err := w.GenerateAddress()
-	if err != nil {
-		panic(err)
-	}
-	pubKeyBytes, _ := wallet.PublicKeyToBytes(&w.PublicKey)
-	fmt.Printf("Wallet Public Key: %x\n", pubKeyBytes)
-	fmt.Printf("Wallet Address: %s\n", w.Address)
-	w.SaveWalletToFile("./mykeys.keystore")
-	chain := blockchain.InitBlockChain()
 
 	var wlt1 wallet.Wallet
 	var wlt0 wallet.Wallet
@@ -37,13 +26,7 @@ func main() {
 
 	// cli.RunCLI()
 
-	block := blockchain.CreateBlock()
-	block.MineBlock(chain, &wlt1)
-
-	size, _ := chain.GetChainHeight()
-	if size < 1 {
-		chain.AddBlock(block)
-	}
+	chain := blockchain.InitBlockChain()
 	chain.PrintChain()
 
 	api.StartServer(&wlt1, chain)
