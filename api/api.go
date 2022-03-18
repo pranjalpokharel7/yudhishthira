@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
+	"github.com/pranjalpokharel7/yudhishthira/p2p"
 	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
 
@@ -12,6 +13,7 @@ func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain) {
 	// uncomment below line for release mode API
 	// gin.SetMode(gin.ReleaseMode)
 
+	go p2p.StartServer("3000", chain, wlt)
 	router := gin.Default()
 
 	// middlewares

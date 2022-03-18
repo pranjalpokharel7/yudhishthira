@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
+	"github.com/pranjalpokharel7/yudhishthira/p2p"
 	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
 
@@ -199,6 +200,7 @@ func PostNewTransaction(wlt *wallet.Wallet, chain *blockchain.BlockChain) gin.Ha
 			c.AbortWithError(400, err)
 			return
 		}
+
 		itemHash, err := hex.DecodeString(newTxData.ItemHash)
 		if err != nil {
 			c.JSON(400, ErrorJSON{ErrorMsg: "bad item hash: could not decode item hex string"})
@@ -209,14 +211,12 @@ func PostNewTransaction(wlt *wallet.Wallet, chain *blockchain.BlockChain) gin.Ha
 			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
 			return
 		}
-		block := blockchain.CreateBlock()
+
 		var txPool []blockchain.Tx
 		txPool = append(txPool, *newTx)
-		block.AddTransactionsToBlock(txPool)
-		block.MineBlock(chain, wlt)
-
-		// fmt.Println(block)
-		chain.AddBlock(block)
+		for _, nodeAddress := range p2p.KnownNodes {
+			p2p.SendTx(nodeAddress, *newTx)
+		}
 
 		c.JSON(200, newTx)
 	}
@@ -238,14 +238,18 @@ func PostCoinbaseTransaction(wlt *wallet.Wallet, chain *blockchain.BlockChain) g
 		}
 
 		// TODO: implement transaction pool later, then remove this automatic mining
-		block := blockchain.CreateBlock()
+
+		// block := blockchain.CreateBlock()
 		var txPool []blockchain.Tx
 		txPool = append(txPool, *coinBaseTx)
-		block.AddTransactionsToBlock(txPool)
-		block.MineBlock(chain, wlt)
+		// block.AddTransactionsToBlock(txPool)
+		// block.MineBlock(chain, wlt)
 
-		// fmt.Println(block)
-		chain.AddBlock(block)
+		// // fmt.Println(block)
+		// chain.AddBlock(block)
+		for _, nodeAddress := range p2p.KnownNodes {
+			p2p.SendTx(nodeAddress, *coinBaseTx)
+		}
 
 		c.JSON(200, coinBaseTx)
 	}
