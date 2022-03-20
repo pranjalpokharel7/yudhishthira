@@ -39,7 +39,7 @@ var (
 	nodeAddress string       // address of this node
 
 	// here string is the transaction id and it point to the actual transaction
-	memoryPool      = make(map[string]blockchain.Tx)
+	MemoryPool      = make(map[string]blockchain.Tx)
 	blocksInTransit [][]byte
 )
 
@@ -360,7 +360,7 @@ func HandleGetData(request []byte, chain *blockchain.BlockChain) {
 
 	if payload.Type == TX_TYPE {
 		txId := hex.EncodeToString(payload.Data)
-		tx := memoryPool[txId]
+		tx := MemoryPool[txId]
 
 		SendTx(payload.AddrFrom, tx)
 	}
@@ -418,7 +418,7 @@ func HandleTx(request []byte, chain *blockchain.BlockChain, wlt *wallet.Wallet) 
 	}
 
 	txHash, err := tx.CalculateTxHash()
-	memoryPool[hex.EncodeToString(txHash)] = *tx
+	MemoryPool[hex.EncodeToString(txHash)] = *tx
 
 	if nodeAddress == KnownNodes[0] {
 		for _, node := range KnownNodes {
@@ -427,25 +427,25 @@ func HandleTx(request []byte, chain *blockchain.BlockChain, wlt *wallet.Wallet) 
 			}
 		}
 	} else {
-		if len(memoryPool) >= 2 {
-			txPool := []blockchain.Tx{}
+		if len(MemoryPool) >= 2 {
+			// txPool := []blockchain.Tx{}
 
-			for _, tx := range memoryPool {
-				txPool = append(txPool, tx)
-			}
+			// for _, tx := range MemoryPool {
+			// 	txPool = append(txPool, tx)
+			// }
 
-			block := blockchain.CreateBlock()
-			block.AddTransactionsToBlock(txPool)
-			err := block.MineBlock(chain, wlt)
-			utility.ErrThenLogPanic(err)
-			chain.AddBlock(block)
+			// block := blockchain.CreateBlock()
+			// block.AddTransactionsToBlock(txPool)
+			// err := block.MineBlock(chain, wlt)
+			// utility.ErrThenLogPanic(err)
+			// chain.AddBlock(block)
 
-			for _, nodes := range KnownNodes {
-				SendBlock(nodes, block)
-			}
+			// for _, nodes := range KnownNodes {
+			// 	SendBlock(nodes, block)
+			// }
 
-			// empty memory pool
-			memoryPool = map[string]blockchain.Tx{}
+			// // empty memory pool
+			// MemoryPool = map[string]blockchain.Tx{}
 		}
 	}
 }
@@ -503,7 +503,7 @@ func HandleInv(request []byte) {
 
 	if payload.Type == TX_TYPE {
 		txID := payload.Data[0]
-		tx := memoryPool[hex.EncodeToString(txID)]
+		tx := MemoryPool[hex.EncodeToString(txID)]
 		txByte, _ := tx.SerializeTxToGOB()
 		if txByte == nil {
 			sendGetData(payload.AddrFrom, TX_TYPE, txID)
@@ -610,6 +610,7 @@ func readKnownNodesFromJSON() {
 }
 
 func StartServer(nodeId string, chain *blockchain.BlockChain, wlt *wallet.Wallet) {
+	fmt.Println("p2p server started at port: ", nodeId)
 	nodeAddress = fmt.Sprintf("%s:%s", utility.GetNodeAddress(), nodeId)
 	// minerAddress = minerAddress
 	ln, err := net.Listen(protocol, nodeAddress)
@@ -630,7 +631,8 @@ func StartServer(nodeId string, chain *blockchain.BlockChain, wlt *wallet.Wallet
 			}
 		}
 	}
-	chain.PrintChain()
+
+	// chain.PrintChain()
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
