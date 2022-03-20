@@ -22,6 +22,7 @@ func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain) {
 	// block endpoint
 	router.GET("/block/last", GetLastBlockResponse(chain))
 	router.GET("/block/last/:n", GetLastNBlocksResponse(chain))
+	router.POST("/block/mine", PostMineBlock(chain, wlt))
 
 	// item endpoint
 	router.GET("/item/history/:itemhash", GetItemTransactionHistoryResponse(chain))
@@ -40,6 +41,7 @@ func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain) {
 
 	// transaction endpoint
 	router.GET("/transaction/last/:n", GetLastNTxsResponse(chain))
+	router.GET("/transaction/pool", GetTxPool())
 	router.POST("/transaction/new", PostNewTransaction(wlt, chain))
 	router.POST("/transaction/coinbase", PostCoinbaseTransaction(wlt, chain))
 

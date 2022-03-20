@@ -211,9 +211,6 @@ func PostNewTransaction(wlt *wallet.Wallet, chain *blockchain.BlockChain) gin.Ha
 			c.JSON(400, ErrorJSON{ErrorMsg: fmt.Sprintf("%v", err)})
 			return
 		}
-
-		var txPool []blockchain.Tx
-		txPool = append(txPool, *newTx)
 		for _, nodeAddress := range p2p.KnownNodes {
 			p2p.SendTx(nodeAddress, *newTx)
 		}
@@ -240,8 +237,6 @@ func PostCoinbaseTransaction(wlt *wallet.Wallet, chain *blockchain.BlockChain) g
 		// TODO: implement transaction pool later, then remove this automatic mining
 
 		// block := blockchain.CreateBlock()
-		var txPool []blockchain.Tx
-		txPool = append(txPool, *coinBaseTx)
 		// block.AddTransactionsToBlock(txPool)
 		// block.MineBlock(chain, wlt)
 
@@ -342,6 +337,39 @@ func GetItemOwner(chain *blockchain.BlockChain) gin.HandlerFunc {
 			"item_owner": lastTxWithItem.BuyerHash,
 		}
 		c.JSON(200, txOwnerInfo)
+	}
+	return fn
+}
+
+// TODO: 1. check validity of received transactions, 2. check if transactions exist previously in blockchain
+func PostMineBlock(chain *blockchain.BlockChain, wlt *wallet.Wallet) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		var selectedTxPool []blockchain.Tx
+		if err := c.BindJSON(&selectedTxPool); err != nil {
+			c.AbortWithError(400, err)
+			return
+		}
+
+		newBlock := blockchain.CreateBlock()
+		newBlock.AddTransactionsToBlock(selectedTxPool)
+		newBlock.MineBlock(chain, wlt)
+		chain.AddBlock(newBlock)
+
+		// TODO: we clear the memory pool here but edit in later commit to remove only selected transactions
+		p2p.MemoryPool = map[string]blockchain.Tx{}
+
+		c.JSON(200, newBlock)
+	}
+	return fn
+}
+
+func GetTxPool() gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		var txsInPools []blockchain.Tx
+		for _, tx := range p2p.MemoryPool {
+			txsInPools = append(txsInPools, tx)
+		}
+		c.JSON(200, txsInPools)
 	}
 	return fn
 }
