@@ -20,7 +20,7 @@ fetchPromise
             subRow.setAttribute("class", `${bData.id}_expand expandContent`)
             row.innerHTML = `
                 <td><a href="#" class="txId">${bData.txID}</a></td>
-                <td><a href="#" class="txId">${bData.itemHash}</a></td>
+                <td><a href="" class="txId">${bData.itemHash}</a></td>
                 <td class="amountTransacted"><b class="">${bData.amount}</b><br></td>
                 <td><div class="dateString">${new Date(bData.timestamp*1000).toLocaleString()}</div></td>
             `;
@@ -29,7 +29,7 @@ fetchPromise
                     <div class="expandFlex">
                         <div class="fromHolder">
                             <b>From</b>
-                            <a href="#">${bData.sellerHash}</a>
+                            <a href="localhost:8080/wallet/info/${bData.sellerHash}">${bData.sellerHash}</a>
                         </div>
                         <svg class="arrow" xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24">
                             <path d="M0 0h24v24H0V0z" fill="none" />
@@ -37,7 +37,7 @@ fetchPromise
                         </svg>
                         <div class="toHolder">
                             <b>To</b>
-                            <a href="#">${bData.buyerHash}</a>
+                            <a href="localhost:8080/wallet/info/${bData.buyerHash}">${bData.buyerHash}</a>
                         </div>
                     </div>
                 </td>
