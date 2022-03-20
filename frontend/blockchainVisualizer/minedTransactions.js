@@ -9,6 +9,7 @@ fetchPromise
     })
     .then(json => {
         let latestMinedTransactions = json;
+        console.log(latestMinedTransactions);
 
         let tblBody2 = document.getElementById("minedTransactions");
         latestMinedTransactions.forEach(bData => {
