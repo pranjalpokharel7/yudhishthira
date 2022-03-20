@@ -74,7 +74,6 @@ func GetLastNTxsResponse(chain *blockchain.BlockChain) gin.HandlerFunc {
 		}
 		lastNBlocks := chain.GetLastNTxs(uint64(n))
 		c.JSON(200, lastNBlocks)
-
 	}
 	return fn
 }
@@ -234,14 +233,6 @@ func PostCoinbaseTransaction(wlt *wallet.Wallet, chain *blockchain.BlockChain) g
 			return
 		}
 
-		// TODO: implement transaction pool later, then remove this automatic mining
-
-		// block := blockchain.CreateBlock()
-		// block.AddTransactionsToBlock(txPool)
-		// block.MineBlock(chain, wlt)
-
-		// // fmt.Println(block)
-		// chain.AddBlock(block)
 		for _, nodeAddress := range p2p.KnownNodes {
 			p2p.SendTx(nodeAddress, *coinBaseTx)
 		}
@@ -344,14 +335,23 @@ func GetItemOwner(chain *blockchain.BlockChain) gin.HandlerFunc {
 // TODO: 1. check validity of received transactions, 2. check if transactions exist previously in blockchain
 func PostMineBlock(chain *blockchain.BlockChain, wlt *wallet.Wallet) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
-		var selectedTxPool []blockchain.Tx
-		if err := c.BindJSON(&selectedTxPool); err != nil {
+		var txModelPool []TransactionsModel
+		if err := c.BindJSON(&txModelPool); err != nil {
 			c.AbortWithError(400, err)
 			return
 		}
 
+		var txPool []blockchain.Tx
+		for _, txModel := range txModelPool {
+			tx, err := ModelToTx(txModel)
+			if err != nil {
+				c.AbortWithError(400, err)
+				return
+			}
+			txPool = append(txPool, *tx)
+		}
 		newBlock := blockchain.CreateBlock()
-		newBlock.AddTransactionsToBlock(selectedTxPool)
+		newBlock.AddTransactionsToBlock(txPool)
 		newBlock.MineBlock(chain, wlt)
 		chain.AddBlock(newBlock)
 
