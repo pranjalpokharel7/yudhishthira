@@ -17,6 +17,7 @@ import (
 
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
 	"github.com/pranjalpokharel7/yudhishthira/utility"
+	"github.com/pranjalpokharel7/yudhishthira/wallet"
 )
 
 // TODO: test everything
@@ -34,7 +35,7 @@ const (
 
 var (
 	// set initial knownNode
-	knownNodes  = []string{} // list of all the knownNodes
+	KnownNodes  = []string{} // list of all the knownNodes
 	nodeAddress string       // address of this node
 
 	// here string is the transaction id and it point to the actual transaction
@@ -132,13 +133,13 @@ func sendData(addr string, data []byte) {
 		fmt.Printf("Node %s is not available\n", addr)
 		var updatedNodes []string
 		// if the address is not available, remove that node
-		for _, node := range knownNodes {
+		for _, node := range KnownNodes {
 			if node != addr {
 				updatedNodes = append(updatedNodes, node)
 			}
 		}
 
-		knownNodes = updatedNodes
+		KnownNodes = updatedNodes
 
 		return
 	}
@@ -187,7 +188,7 @@ func SendBlock(addr string, block *blockchain.Block) {
 }
 
 func SendAddress(addr string, block *blockchain.Block) {
-	address := Address{AddrList: knownNodes}
+	address := Address{AddrList: KnownNodes}
 
 	info := append(CommandToBytes("address"), GobEncode(address)...)
 
@@ -207,8 +208,8 @@ func sendGetData(addr string, kind MESSAGE_TYPE, id []byte) {
 	sendData(addr, data)
 }
 
-// send a particular transaction to the given address
-func sendTx(addr string, tx blockchain.Tx) {
+// send transaction to the given node address
+func SendTx(addr string, tx blockchain.Tx) {
 	serializedData, err := tx.SerializeTxToGOB()
 
 	if err != nil {
@@ -220,7 +221,7 @@ func sendTx(addr string, tx blockchain.Tx) {
 		Transaction: serializedData,
 	})
 
-	data = append(CommandToBytes("gettx"), data...)
+	data = append(CommandToBytes("tx"), data...)
 	sendData(addr, data)
 }
 
@@ -271,9 +272,9 @@ func HandleAddress(request []byte, chain *blockchain.BlockChain) {
 		log.Panic(err)
 	}
 
-	knownNodes = append(knownNodes, payload.AddrList...)
+	KnownNodes = append(KnownNodes, payload.AddrList...)
 
-	for _, node := range knownNodes {
+	for _, node := range KnownNodes {
 		// request blocks with all the nodes that we have recieved
 		SendGetBlocks(node, chain)
 	}
@@ -361,7 +362,7 @@ func HandleGetData(request []byte, chain *blockchain.BlockChain) {
 		txId := hex.EncodeToString(payload.Data)
 		tx := memoryPool[txId]
 
-		sendTx(payload.AddrFrom, tx)
+		SendTx(payload.AddrFrom, tx)
 	}
 }
 
@@ -394,12 +395,12 @@ func HandleVersion(request []byte, chain *blockchain.BlockChain) {
 	}
 
 	// if nodes are not known add them to known nodes
-	if !contains(knownNodes, payload.AddressFrom) {
-		knownNodes = append(knownNodes, payload.AddressFrom)
+	if !contains(KnownNodes, payload.AddressFrom) {
+		KnownNodes = append(KnownNodes, payload.AddressFrom)
 	}
 }
 
-func HandleTx(request []byte, chain *blockchain.BlockChain) {
+func HandleTx(request []byte, chain *blockchain.BlockChain, wlt *wallet.Wallet) {
 	var buff bytes.Buffer
 	var payload Tx
 
@@ -419,17 +420,32 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 	txHash, err := tx.CalculateTxHash()
 	memoryPool[hex.EncodeToString(txHash)] = *tx
 
-	if nodeAddress == knownNodes[0] {
-		for _, node := range knownNodes {
+	if nodeAddress == KnownNodes[0] {
+		for _, node := range KnownNodes {
 			if node != nodeAddress && node != payload.AddrFrom {
 				sendInv(node, TX_TYPE, [][]byte{txHash})
 			}
 		}
 	} else {
-		// TODO: Fix the number of nodes to mine
-		// TODO Mine tx
 		if len(memoryPool) >= 2 {
+			txPool := []blockchain.Tx{}
 
+			for _, tx := range memoryPool {
+				txPool = append(txPool, tx)
+			}
+
+			block := blockchain.CreateBlock()
+			block.AddTransactionsToBlock(txPool)
+			err := block.MineBlock(chain, wlt)
+			utility.ErrThenLogPanic(err)
+			chain.AddBlock(block)
+
+			for _, nodes := range KnownNodes {
+				SendBlock(nodes, block)
+			}
+
+			// empty memory pool
+			memoryPool = map[string]blockchain.Tx{}
 		}
 	}
 }
@@ -496,7 +512,7 @@ func HandleInv(request []byte) {
 
 }
 
-func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
+func HandleConnection(conn net.Conn, chain *blockchain.BlockChain, wlt *wallet.Wallet) {
 	// Reader is interface with read method
 	req, err := ioutil.ReadAll(conn)
 
@@ -527,9 +543,9 @@ func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 		HandleGetData(req, chain)
 		break
 
-	case "gettx":
-		fmt.Println("Sending Transaction")
-		HandleTx(req, chain)
+	case "tx":
+		fmt.Println("Receiving a Transaction")
+		HandleTx(req, chain, wlt)
 		break
 
 	case "address":
@@ -581,7 +597,7 @@ func readKnownNodesFromJSON() {
 
 	var payload map[string]interface{}
 
-	knownNodes = []string{}
+	KnownNodes = []string{}
 
 	err = json.Unmarshal(knownNodesByte, &payload)
 	utility.ErrThenLogPanic(err)
@@ -589,11 +605,11 @@ func readKnownNodesFromJSON() {
 	knownNodesList := payload["nodes"].([]interface{})
 
 	for _, node := range knownNodesList {
-		knownNodes = append(knownNodes, node.(string))
+		KnownNodes = append(KnownNodes, node.(string))
 	}
 }
 
-func StartServer(nodeId string) {
+func StartServer(nodeId string, chain *blockchain.BlockChain, wlt *wallet.Wallet) {
 	nodeAddress = fmt.Sprintf("%s:%s", utility.GetNodeAddress(), nodeId)
 	// minerAddress = minerAddress
 	ln, err := net.Listen(protocol, nodeAddress)
@@ -605,56 +621,22 @@ func StartServer(nodeId string) {
 	}
 	defer ln.Close()
 
-	// defer chain.Database.Close()
-	// go CloseDB(chain)
-
-	chain := &blockchain.BlockChain{}
-	chain = blockchain.InitBlockChain()
-
 	// TODO: this is just for testing phase fix later
 	// TODO: just loop thoughout the known nodes and ask for version
-	if nodeAddress != knownNodes[0] {
-		for _, node := range knownNodes {
+	if nodeAddress != KnownNodes[0] {
+		for _, node := range KnownNodes {
 			if node != nodeAddress {
 				SendVersion(node, chain)
 			}
 		}
-	} else {
-		b := blockchain.CreateBlock()
-		tx := []blockchain.Tx{
-			{
-				Amount: 69,
-			},
-			{
-				Amount: 6969,
-			},
-		}
-		b.AddTransactionsToBlock(tx)
-		chain.AddBlock(b)
-		if chain.GetHeight() == 0 {
-			chain.AddBlock(b)
-			chain.AddBlock(b)
-			chain.AddBlock(b)
-			chain.AddBlock(b)
-			chain.AddBlock(b)
-		}
 	}
-
-	// if nodeAddress != knownNodes[0] {
-	// 	SendVersion(knownNodes[0], chain)
-	// } else {
-	// 	// chain = blockchain.InitBlockChain()
-	//
-	// }
-
 	chain.PrintChain()
-
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			log.Panic(err)
 		}
-		go HandleConnection(conn, chain)
+		go HandleConnection(conn, chain, wlt)
 
 	}
 }

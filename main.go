@@ -13,8 +13,6 @@ import (
 func main() {
 	fmt.Println("This is where it begins...")
 
-	chain := blockchain.InitBlockChain()
-
 	var wlt1 wallet.Wallet
 	var wlt0 wallet.Wallet
 	wlt1.LoadWalletFromFile("./mykeys.keystore")
@@ -28,11 +26,8 @@ func main() {
 
 	// cli.RunCLI()
 
-	// block := blockchain.CreateBlock()
-	// block.MineBlock(chain, &wlt)
-
-	// chain.AddBlock(block)
-	// chain.PrintChain()
+	chain := blockchain.InitBlockChain()
+	chain.PrintChain()
 
 	api.StartServer(&wlt1, chain)
 }
