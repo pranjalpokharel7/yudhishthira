@@ -1,10 +1,8 @@
-# Yudhishthira - A Blockchain Based BackEnd
+# Yudhishthira - A "Coinless" Blockchain
 
 Why the name 'Yudhishthira'? Because blockchain never lies. ;)
 
-## Is this project complete?
-
-No, this is a work in progress.
+This project was done as a part of Minor Project of 6th Semester, Bachelor in Computer Engineering (BCT), Puchowk Campus, Nepal. Final report for the project is available [here](https://drive.google.com/file/d/1JdzvoINf7c_0zuG_9UG_3ReyifUet7hu/view?usp=sharing).
 
 ## Contribution Guidelines
 
