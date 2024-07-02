@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"log"
 
+	"github.com/joho/godotenv"
 	"github.com/pranjalpokharel7/yudhishthira/api"
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
 	"github.com/pranjalpokharel7/yudhishthira/wallet"
@@ -12,6 +14,11 @@ import (
 
 func main() {
 	fmt.Println("This is where it begins...")
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
 	var wlt1 wallet.Wallet
 	var wlt0 wallet.Wallet

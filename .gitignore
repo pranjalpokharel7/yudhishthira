@@ -33,6 +33,8 @@ yudhishthira
 # Database Folder
 db/
 
+# Environment
+.env
 
 main
 test_p2p

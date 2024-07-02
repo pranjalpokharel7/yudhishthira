@@ -1,6 +1,8 @@
 package api
 
 import (
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"github.com/pranjalpokharel7/yudhishthira/blockchain"
 	"github.com/pranjalpokharel7/yudhishthira/p2p"
@@ -14,6 +16,13 @@ func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain) {
 	// gin.SetMode(gin.ReleaseMode)
 
 	go p2p.StartServer("3000", chain, wlt)
+
+	gin_mode := os.Getenv("GIN_MODE")
+	if gin_mode == "" {
+		gin_mode = "debug"
+	}
+	gin.SetMode(gin_mode)
+
 	router := gin.Default()
 
 	// middlewares
