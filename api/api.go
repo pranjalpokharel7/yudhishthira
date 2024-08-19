@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -11,11 +12,11 @@ import (
 
 const PORT = ":8080"
 
-func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain) {
+func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain, port string) {
 	// uncomment below line for release mode API
 	// gin.SetMode(gin.ReleaseMode)
 
-	go p2p.StartServer("3000", chain, wlt)
+	go p2p.StartServer(port, chain, wlt)
 
 	gin_mode := os.Getenv("GIN_MODE")
 	if gin_mode == "" {
@@ -58,5 +59,6 @@ func StartServer(wlt *wallet.Wallet, chain *blockchain.BlockChain) {
 	router.GET("/token/sign/:token", SignToken(wlt))
 	router.POST("/token/verify", VerifyToken())
 
+	fmt.Println("GIN server started at port: ", PORT)
 	router.Run(PORT)
 }

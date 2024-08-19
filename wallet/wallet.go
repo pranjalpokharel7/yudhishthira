@@ -132,13 +132,15 @@ func GenerateWallet(walletFile string) error {
 }
 
 // checks if the address is valid and returns public key hash if true
+// TODO: this function can be cached
 func PubKeyHashFromAddress(address string) ([]byte, error) {
 	checksumHash, err := base58.Decode(address)
 	if err != nil {
 		return nil, err
 	}
-	actualChecksum := checksumHash[len(checksumHash)-CHECKSUM_SIZE:]
-	pubKeyHash := checksumHash[0 : len(checksumHash)-CHECKSUM_SIZE]
+	checksumOffset := len(checksumHash) - CHECKSUM_SIZE
+	actualChecksum := checksumHash[checksumOffset:]
+	pubKeyHash := checksumHash[0:checksumOffset]
 	targetChecksum := deriveChecksum(pubKeyHash)
 	if bytes.Equal(actualChecksum, targetChecksum) {
 		return pubKeyHash, nil
