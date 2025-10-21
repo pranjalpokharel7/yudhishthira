@@ -5,9 +5,8 @@ go 1.17
 require (
 	github.com/dgraph-io/badger v1.6.2
 	github.com/gin-gonic/gin v1.7.7
-	github.com/joho/godotenv v1.5.1
 	github.com/mr-tron/base58 v1.2.0
-	golang.org/x/crypto v0.0.0-20220208233918-bba287dce954
+	golang.org/x/crypto v0.21.0
 )
 
 require (
@@ -27,7 +26,7 @@ require (
 	github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 // indirect
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
-	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
-	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
+	golang.org/x/net v0.23.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
